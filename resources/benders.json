@@ -9,9 +9,9 @@
         {
           "id": "b7f11abb",
           "name": "1.5\" x 4.5\" CLR",
-          "tube_od": 1.5,
-          "clr": 4.5,
-          "offset": 0.625,
+          "tube_od": 3.81,
+          "clr": 11.43,
+          "offset": 1.5875,
           "min_tail": 0.0,
           "notes": "Standard 1.5\" die"
         },
@@ -27,9 +27,9 @@
         {
           "id": "c0f2b1b5",
           "name": "1.75 - 5.5 CLR",
-          "tube_od": 1.75,
-          "clr": 5.5,
-          "offset": 0.7089999999999999,
+          "tube_od": 4.445,
+          "clr": 13.97,
+          "offset": 1.80086,
           "min_tail": 0.0,
           "notes": ""
         }
