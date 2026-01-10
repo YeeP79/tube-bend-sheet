@@ -145,7 +145,7 @@ class BenderEditor:
             return OperationResult(False, f'Bender "{selected_bender_name}" not found.')
 
         self._profile_manager.add_die_to_bender(
-            bender.id, data.name, data.tube_od, data.clr, data.offset, data.notes
+            bender.id, data.name, data.tube_od, data.clr, data.offset, data.min_tail, data.notes
         )
         return OperationResult(True, f'Die "{data.name}" added to {bender.name}.')
 
@@ -182,6 +182,7 @@ class BenderEditor:
                     data.tube_od,
                     data.clr,
                     data.offset,
+                    data.min_tail,
                     data.notes,
                 )
                 return OperationResult(True, f'Die "{data.name}" updated.')

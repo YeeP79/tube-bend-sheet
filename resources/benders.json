@@ -4,7 +4,7 @@
     {
       "id": "32f3a62a",
       "name": "JD2 Model 3",
-      "min_grip": 6.0,
+      "min_grip": 9.525,
       "dies": [
         {
           "id": "b7f11abb",
@@ -12,14 +12,16 @@
           "tube_od": 1.5,
           "clr": 4.5,
           "offset": 0.625,
+          "min_tail": 0.0,
           "notes": "Standard 1.5\" die"
         },
         {
           "id": "dba199f1",
           "name": "1.75\" x 5.5\" CLR",
-          "tube_od": 1.75,
-          "clr": 5.5,
-          "offset": 0.6875,
+          "tube_od": 4.445,
+          "clr": 13.97,
+          "offset": 1.8008600000000001,
+          "min_tail": 0.0,
           "notes": "Standard 1.75\" die"
         },
         {
@@ -28,17 +30,11 @@
           "tube_od": 1.75,
           "clr": 5.5,
           "offset": 0.7089999999999999,
+          "min_tail": 0.0,
           "notes": ""
         }
       ],
       "notes": "Default bender profile"
-    },
-    {
-      "id": "36c7d474",
-      "name": "JD Squared Model 3",
-      "min_grip": 3.75,
-      "dies": [],
-      "notes": ""
     }
   ]
 }

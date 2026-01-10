@@ -344,7 +344,7 @@ class TestProfileManagerOperations:
         """Add a die to an existing bender."""
         bender = profile_manager.add_bender("Test", 6.0)
         die = profile_manager.add_die_to_bender(
-            bender.id, "New Die", 1.5, 4.5, 0.5, "Notes"
+            bender.id, "New Die", 1.5, 4.5, 0.5, notes="Notes"
         )
         assert die is not None
         assert die.name == "New Die"

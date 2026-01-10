@@ -172,27 +172,31 @@ class ProfileManager:
             raise ProfileSaveError(f"Failed to save bender profiles: {e}") from e
     
     def _create_default_profiles(self) -> None:
-        """Create default bender profiles."""
+        """Create default bender profiles.
+
+        All values are stored in internal units (centimeters) per Fusion convention.
+        """
         # Example: JD2 Model 3 with common dies
+        # Values converted from inches: 1" = 2.54 cm
         jd2 = Bender(
             id=self._generate_id(),
             name='JD2 Model 3',
-            min_grip=6.0,
+            min_grip=15.24,  # 6"
             dies=[
                 Die(
                     id=self._generate_id(),
                     name='1.5" x 4.5" CLR',
-                    tube_od=1.5,
-                    clr=4.5,
-                    offset=0.625,
+                    tube_od=3.81,    # 1.5"
+                    clr=11.43,       # 4.5"
+                    offset=1.5875,   # 0.625"
                     notes='Standard 1.5" die'
                 ),
                 Die(
                     id=self._generate_id(),
                     name='1.75" x 5.5" CLR',
-                    tube_od=1.75,
-                    clr=5.5,
-                    offset=0.6875,
+                    tube_od=4.445,   # 1.75"
+                    clr=13.97,       # 5.5"
+                    offset=1.74625,  # 0.6875"
                     notes='Standard 1.75" die'
                 ),
             ],
@@ -290,23 +294,25 @@ class ProfileManager:
         return False
     
     def add_die_to_bender(self, bender_id: str, name: str, tube_od: float,
-                          clr: float, offset: float, notes: str = "") -> Die | None:
+                          clr: float, offset: float, min_tail: float = 0.0,
+                          notes: str = "") -> Die | None:
         """
         Add a die to a bender.
-        
+
         Returns:
             The created Die, or None if bender not found
         """
         bender = self.get_bender_by_id(bender_id)
         if bender is None:
             return None
-        
+
         die = Die(
             id=self._generate_id(),
             name=name,
             tube_od=tube_od,
             clr=clr,
             offset=offset,
+            min_tail=min_tail,
             notes=notes
         )
         bender.add_die(die)
@@ -315,7 +321,8 @@ class ProfileManager:
     
     def update_die(self, bender_id: str, die_id: str, name: str | None = None,
                    tube_od: float | None = None, clr: float | None = None,
-                   offset: float | None = None, notes: str | None = None) -> bool:
+                   offset: float | None = None, min_tail: float | None = None,
+                   notes: str | None = None) -> bool:
         """
         Update an existing die.
 
@@ -326,6 +333,7 @@ class ProfileManager:
             tube_od: New tube OD - must be positive (optional)
             clr: New CLR - must be positive (optional)
             offset: New offset - must be non-negative (optional)
+            min_tail: New min tail - must be non-negative (optional)
             notes: New notes (optional)
 
         Returns:
@@ -349,6 +357,8 @@ class ProfileManager:
             raise ValueError(f"clr must be positive, got {clr}")
         if offset is not None and offset < 0:
             raise ValueError(f"offset cannot be negative, got {offset}")
+        if min_tail is not None and min_tail < 0:
+            raise ValueError(f"min_tail cannot be negative, got {min_tail}")
 
         if name is not None:
             die.name = name
@@ -358,6 +368,8 @@ class ProfileManager:
             die.clr = clr
         if offset is not None:
             die.offset = offset
+        if min_tail is not None:
+            die.min_tail = min_tail
         if notes is not None:
             die.notes = notes
 

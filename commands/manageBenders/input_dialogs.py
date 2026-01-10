@@ -29,6 +29,7 @@ class DieInput:
     tube_od: float  # In internal units (cm)
     clr: float  # In internal units (cm)
     offset: float  # In internal units (cm)
+    min_tail: float  # In internal units (cm)
 
 
 def _get_float_input(
@@ -116,6 +117,7 @@ def get_die_input(
     current_tube_od: float | None = None,
     current_clr: float | None = None,
     current_offset: float | None = None,
+    current_min_tail: float | None = None,
 ) -> DieInput | None:
     """
     Show input dialogs to collect die data.
@@ -127,6 +129,7 @@ def get_die_input(
         current_tube_od: Current tube OD in cm (for editing), None for new
         current_clr: Current CLR in cm (for editing), None for new
         current_offset: Current offset in cm (for editing), None for new
+        current_min_tail: Current min tail in cm (for editing), None for new
 
     Returns:
         DieInput with collected data, or None if cancelled
@@ -185,7 +188,23 @@ def get_die_input(
         ui.messageBox("Die offset cannot be negative.", "Invalid Input")
         return None
 
-    return DieInput(name=name, tube_od=tube_od, clr=clr, offset=offset)
+    # Get minimum tail length
+    default_min_tail = "2.0" if current_min_tail is None else f"{current_min_tail * units.cm_to_unit:.4f}"
+    min_tail, cancelled = _get_float_input(
+        ui,
+        f"Enter minimum tail length ({units.unit_symbol}):",
+        "Minimum Tail",
+        default_min_tail,
+        units,
+    )
+    if cancelled:
+        return None
+
+    if min_tail < 0:
+        ui.messageBox("Minimum tail length cannot be negative.", "Invalid Input")
+        return None
+
+    return DieInput(name=name, tube_od=tube_od, clr=clr, offset=offset, min_tail=min_tail)
 
 
 def confirm_delete(

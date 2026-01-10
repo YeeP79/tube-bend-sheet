@@ -326,7 +326,7 @@
                         <div class="bender-header ${expandClass}" onclick="toggleBender('${escapeAttr(bender.id)}')">
                             <span class="expand-icon">${expandIcon}</span>
                             <span class="bender-name">${escapeHtml(bender.name)}</span>
-                            <span class="bender-info">Grip: ${bender.min_grip}</span>
+                            <span class="bender-info">Grip: ${bender.min_grip_display}</span>
                             <div class="actions" onclick="event.stopPropagation()">
                                 <button class="action-btn" onclick="editBender('${escapeAttr(bender.id)}')" title="Edit Bender">✎</button>
                                 <button class="action-btn delete" onclick="deleteBender('${escapeAttr(bender.id)}')" title="Delete Bender">✕</button>
@@ -353,7 +353,7 @@
             return bender.dies.map(die => `
                 <div class="die-item" data-id="${escapeAttr(die.id)}">
                     <span class="die-name">${escapeHtml(die.name)}</span>
-                    <span class="die-info">CLR: ${die.clr}</span>
+                    <span class="die-info">CLR: ${die.clr_display}</span>
                     <div class="actions">
                         <button class="action-btn" onclick="editDie('${escapeAttr(bender.id)}', '${escapeAttr(die.id)}')" title="Edit Die">✎</button>
                         <button class="action-btn delete" onclick="deleteDie('${escapeAttr(bender.id)}', '${escapeAttr(die.id)}')" title="Delete Die">✕</button>

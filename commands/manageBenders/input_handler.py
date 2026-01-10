@@ -90,6 +90,7 @@ class DieFormData:
     tube_od: float  # In display units
     clr: float  # In display units
     offset: float  # In display units
+    min_tail: float  # In display units
     notes: str
 
 
@@ -250,6 +251,9 @@ class InputHandler:
         offset_input = adsk.core.ValueCommandInput.cast(
             self._inputs.itemById("die_offset")
         )
+        min_tail_input = adsk.core.ValueCommandInput.cast(
+            self._inputs.itemById("min_tail")
+        )
         notes_input = adsk.core.StringValueCommandInput.cast(
             self._inputs.itemById("die_notes")
         )
@@ -261,6 +265,7 @@ class InputHandler:
             ),
             clr=clr_input.value * self._units.cm_to_unit if clr_input else 0.0,
             offset=offset_input.value * self._units.cm_to_unit if offset_input else 0.0,
+            min_tail=min_tail_input.value * self._units.cm_to_unit if min_tail_input else 0.0,
             notes=notes_input.value if notes_input else "",
         )
 
@@ -291,7 +296,7 @@ class InputHandler:
             notes_input.value = notes
 
     def set_die_form_data(
-        self, name: str, tube_od: float, clr: float, offset: float, notes: str
+        self, name: str, tube_od: float, clr: float, offset: float, min_tail: float, notes: str
     ) -> None:
         """
         Set die form fields.
@@ -301,6 +306,7 @@ class InputHandler:
             tube_od: Tube OD in display units
             clr: CLR in display units
             offset: Die offset in display units
+            min_tail: Min tail in display units
             notes: Notes text
         """
         name_input = adsk.core.StringValueCommandInput.cast(
@@ -312,6 +318,9 @@ class InputHandler:
         clr_input = adsk.core.ValueCommandInput.cast(self._inputs.itemById("clr"))
         offset_input = adsk.core.ValueCommandInput.cast(
             self._inputs.itemById("die_offset")
+        )
+        min_tail_input = adsk.core.ValueCommandInput.cast(
+            self._inputs.itemById("min_tail")
         )
         notes_input = adsk.core.StringValueCommandInput.cast(
             self._inputs.itemById("die_notes")
@@ -325,5 +334,7 @@ class InputHandler:
             clr_input.value = clr / self._units.cm_to_unit
         if offset_input:
             offset_input.value = offset / self._units.cm_to_unit
+        if min_tail_input:
+            min_tail_input.value = min_tail / self._units.cm_to_unit
         if notes_input:
             notes_input.value = notes

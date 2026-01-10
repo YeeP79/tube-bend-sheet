@@ -8,13 +8,13 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     import adsk.core
 
 from ...lib import fusionAddInUtils as futil
-from ...models import Bender
+from ...models import Bender, UnitConfig
 
 
 # Action types for incoming messages (JS -> Python)
@@ -61,16 +61,27 @@ class HTMLBridge:
     This class provides type-safe methods for:
     - Parsing incoming messages from JavaScript
     - Sending data updates to the HTML tree view
+    - Formatting values with proper unit conversion
     """
 
-    def __init__(self, browser_input: 'adsk.core.BrowserCommandInput') -> None:
+    def __init__(
+        self,
+        browser_input: 'adsk.core.BrowserCommandInput',
+        units: UnitConfig | None = None
+    ) -> None:
         """
         Initialize the bridge.
 
         Args:
             browser_input: The BrowserCommandInput to communicate with
+            units: Unit configuration for formatting display values
         """
         self._browser_input = browser_input
+        self._units = units
+
+    def set_units(self, units: UnitConfig) -> None:
+        """Update the unit configuration."""
+        self._units = units
 
     def parse_message(self, args: 'adsk.core.HTMLEventArgs') -> HTMLMessage:
         """
@@ -103,6 +114,42 @@ class HTMLBridge:
             die_id=data.get('die_id'),
         )
 
+    def _format_value(self, value_cm: float) -> str:
+        """Format a value from cm to display units with symbol."""
+        if self._units is None:
+            return f"{value_cm:.2f}"
+        display_value = value_cm * self._units.cm_to_unit
+        return f"{display_value:.2f}{self._units.unit_symbol}"
+
+    def _format_bender_for_display(self, bender: Bender) -> dict[str, Any]:
+        """
+        Format a bender for HTML display with converted units.
+
+        Args:
+            bender: The bender to format
+
+        Returns:
+            Dict with bender data plus formatted display strings
+        """
+        # Convert TypedDict to regular dict so we can add display fields
+        bender_dict = bender.to_dict()
+        data: dict[str, Any] = dict(bender_dict)
+        # Add formatted display values
+        data['min_grip_display'] = self._format_value(bender.min_grip)
+
+        # Format each die - convert TypedDicts to regular dicts
+        formatted_dies: list[dict[str, Any]] = []
+        for i, die in enumerate(bender.dies):
+            die_data: dict[str, Any] = dict(bender_dict['dies'][i])
+            die_data['clr_display'] = self._format_value(die.clr)
+            die_data['tube_od_display'] = self._format_value(die.tube_od)
+            die_data['offset_display'] = self._format_value(die.offset)
+            die_data['min_tail_display'] = self._format_value(die.min_tail)
+            formatted_dies.append(die_data)
+        data['dies'] = formatted_dies
+
+        return data
+
     def send_benders(self, benders: list[Bender]) -> None:
         """
         Send the full bender list to the HTML view.
@@ -110,7 +157,8 @@ class HTMLBridge:
         Args:
             benders: List of all benders to display
         """
-        data = json.dumps([b.to_dict() for b in benders])
+        formatted = [self._format_bender_for_display(b) for b in benders]
+        data = json.dumps(formatted)
         self._browser_input.sendInfoToHTML('loadBenders', data)
 
     def send_bender_added(self, bender: Bender) -> None:
@@ -120,7 +168,7 @@ class HTMLBridge:
         Args:
             bender: The newly created bender
         """
-        data = json.dumps(bender.to_dict())
+        data = json.dumps(self._format_bender_for_display(bender))
         self._browser_input.sendInfoToHTML('addBenderToList', data)
 
     def send_bender_update(self, bender: Bender) -> None:
@@ -130,7 +178,7 @@ class HTMLBridge:
         Args:
             bender: The updated bender
         """
-        data = json.dumps(bender.to_dict())
+        data = json.dumps(self._format_bender_for_display(bender))
         self._browser_input.sendInfoToHTML('updateBender', data)
 
     def send_bender_removed(self, bender_id: str) -> None:

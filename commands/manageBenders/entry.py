@@ -134,8 +134,8 @@ def command_created(args: adsk.core.CommandCreatedEventArgs) -> None:
         'benderTree', '', html_url, 300, 500
     )
 
-    # Initialize HTML bridge for communication
-    _html_bridge = HTMLBridge(browser_input)
+    # Initialize HTML bridge for communication (with units for value formatting)
+    _html_bridge = HTMLBridge(browser_input, _units)
 
     # Configure dialog
     cmd.setDialogInitialSize(500, 400)
@@ -264,7 +264,8 @@ def _handle_add_die(bender_id: str) -> None:
         return
 
     _profile_manager.add_die_to_bender(
-        bender_id, die_input.name, die_input.tube_od, die_input.clr, die_input.offset, ""
+        bender_id, die_input.name, die_input.tube_od, die_input.clr,
+        die_input.offset, die_input.min_tail, ""
     )
 
     updated_bender = _profile_manager.get_bender_by_id(bender_id)
@@ -292,6 +293,7 @@ def _handle_edit_die(bender_id: str, die_id: str) -> None:
         current_tube_od=die.tube_od,
         current_clr=die.clr,
         current_offset=die.offset,
+        current_min_tail=die.min_tail,
     )
     if die_input is None:
         return
@@ -303,6 +305,7 @@ def _handle_edit_die(bender_id: str, die_id: str) -> None:
         die_input.tube_od,
         die_input.clr,
         die_input.offset,
+        die_input.min_tail,
         die.notes,
     )
 
