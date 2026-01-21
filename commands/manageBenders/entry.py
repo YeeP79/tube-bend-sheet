@@ -7,7 +7,6 @@ profiles and their associated die configurations.
 from __future__ import annotations
 
 import os
-from typing import Any
 
 import adsk.core
 import adsk.fusion
@@ -36,8 +35,9 @@ PANEL_ID = config.PANEL_ID
 RESOURCE_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources', '')
 ICON_FOLDER = RESOURCE_FOLDER
 
-# Local list of event handlers to maintain references
-local_handlers: list[Any] = []
+# Handler list stores Fusion event handlers for lifetime management.
+# FusionHandler Protocol ensures type-safe handler storage.
+local_handlers: list[futil.FusionHandler] = []
 
 # Module-level state
 _profile_manager: ProfileManager | None = None

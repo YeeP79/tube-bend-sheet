@@ -59,7 +59,7 @@ class AttributeManager:
     SETTINGS_ATTR = 'tubeSettings'
     
     @staticmethod
-    def save_settings(entity: 'adsk.fusion.SketchLine | adsk.fusion.SketchArc | adsk.fusion.Component',
+    def save_settings(entity: 'adsk.fusion.SketchCurve | adsk.fusion.SketchEntity | adsk.fusion.Component',
                       settings: TubeSettings) -> bool:
         """
         Save tube settings to an entity.
@@ -93,7 +93,7 @@ class AttributeManager:
             return False
     
     @staticmethod
-    def load_settings(entity: 'adsk.fusion.SketchLine | adsk.fusion.SketchArc | adsk.fusion.Component') -> TubeSettings | None:
+    def load_settings(entity: 'adsk.fusion.SketchCurve | adsk.fusion.SketchEntity | adsk.fusion.Component') -> TubeSettings | None:
         """
         Load tube settings from an entity.
         
@@ -121,7 +121,7 @@ class AttributeManager:
             return None
 
     @staticmethod
-    def clear_settings(entity: 'adsk.fusion.SketchLine | adsk.fusion.SketchArc | adsk.fusion.Component') -> bool:
+    def clear_settings(entity: 'adsk.fusion.SketchCurve | adsk.fusion.SketchEntity | adsk.fusion.Component') -> bool:
         """
         Remove tube settings from an entity.
         
@@ -147,7 +147,7 @@ class AttributeManager:
 
     @staticmethod
     def _get_attribute_target(
-        entity: 'adsk.fusion.SketchLine | adsk.fusion.SketchArc | adsk.fusion.Component'
+        entity: 'adsk.fusion.SketchCurve | adsk.fusion.SketchEntity | adsk.fusion.Component'
     ) -> 'adsk.fusion.Sketch | adsk.fusion.Component | None':
         """
         Get the appropriate target for storing attributes.

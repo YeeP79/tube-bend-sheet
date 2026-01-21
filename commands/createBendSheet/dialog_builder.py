@@ -12,6 +12,8 @@ from ...models import UnitConfig
 from ...storage import ProfileManager
 from ...storage.attributes import TubeSettings
 from ...core import format_length
+from .dialog_state import DialogState
+from .die_filter import DieFilter
 
 
 class BendSheetDialogBuilder:
@@ -22,6 +24,10 @@ class BendSheetDialogBuilder:
     - Populating dropdowns with bender/die options
     - Setting up value inputs with defaults
     - Configuring dialog appearance
+
+    Delegates to:
+    - DialogState: Value and enabled state management
+    - DieFilter: Die filtering and CLR matching
     """
 
     def __init__(
@@ -30,8 +36,7 @@ class BendSheetDialogBuilder:
         profile_manager: ProfileManager | None,
         units: UnitConfig,
     ) -> None:
-        """
-        Initialize the dialog builder.
+        """Initialize the dialog builder.
 
         Args:
             inputs: Command inputs container
@@ -41,13 +46,14 @@ class BendSheetDialogBuilder:
         self._inputs = inputs
         self._profile_manager = profile_manager
         self._units = units
+        self._state = DialogState(inputs)
+        self._die_filter = DieFilter(profile_manager)
 
     def build_bender_dropdown(
         self,
         saved_settings: TubeSettings | None,
     ) -> tuple[adsk.core.DropDownCommandInput, int]:
-        """
-        Create and populate the bender selection dropdown.
+        """Create and populate the bender selection dropdown.
 
         Args:
             saved_settings: Previously saved settings to restore selection
@@ -61,7 +67,7 @@ class BendSheetDialogBuilder:
             adsk.core.DropDownStyles.TextListDropDownStyle,
         )
         items = dropdown.listItems
-        items.add('(None - Manual Entry)', True)
+        items.add(DieFilter.MANUAL_ENTRY_BENDER, True)
 
         selected_idx: int = 0
 
@@ -87,8 +93,7 @@ class BendSheetDialogBuilder:
         detected_clr: float,
         saved_settings: TubeSettings | None,
     ) -> adsk.core.DropDownCommandInput:
-        """
-        Create and populate the die selection dropdown.
+        """Create and populate the die selection dropdown.
 
         Args:
             selected_bender_idx: Index of selected bender (0 = none)
@@ -104,7 +109,7 @@ class BendSheetDialogBuilder:
             adsk.core.DropDownStyles.TextListDropDownStyle,
         )
         items = dropdown.listItems
-        items.add('(Manual Entry)', True)
+        items.add(DieFilter.MANUAL_ENTRY_DIE, True)
 
         if selected_bender_idx > 0 and self._profile_manager:
             bender = self._profile_manager.benders[selected_bender_idx - 1]
@@ -114,9 +119,11 @@ class BendSheetDialogBuilder:
                 is_selected = bool(
                     saved_settings and saved_settings.die_id == die.id
                 )
-                # Add CLR match indicator
-                clr_match = " ✓" if die.matches_clr(detected_clr, 0.1) else ""
-                items.add(f"{die.name}{clr_match}", is_selected)
+                # Add CLR match indicator using DieFilter
+                display_name = self._die_filter.format_die_name_with_clr_match(
+                    die, detected_clr
+                )
+                items.add(display_name, is_selected)
                 if is_selected:
                     selected_die_idx = i + 1
 
@@ -130,8 +137,7 @@ class BendSheetDialogBuilder:
         self,
         saved_settings: TubeSettings | None,
     ) -> adsk.core.DropDownCommandInput:
-        """
-        Create and populate the precision dropdown.
+        """Create and populate the precision dropdown.
 
         Args:
             saved_settings: Previously saved settings to restore selection
@@ -168,8 +174,7 @@ class BendSheetDialogBuilder:
         detected_clr: float,
         saved_settings: TubeSettings | None,
     ) -> None:
-        """
-        Create the value input fields (tube OD, die offset, min grip).
+        """Create the value input fields (tube OD, die offset, min grip).
 
         Args:
             detected_clr: CLR detected from geometry
@@ -222,6 +227,19 @@ class BendSheetDialogBuilder:
             adsk.core.ValueInput.createByReal(0),
         )
 
+        # Extra material (fudge factor)
+        extra_input = self._inputs.addValueInput(
+            'extra_allowance',
+            f'Extra Allowance ({self._units.unit_symbol})',
+            self._units.unit_name,
+            adsk.core.ValueInput.createByReal(0),
+        )
+        extra_input.tooltip = (
+            "Additional material to add to each end of the tube to account "
+            "for alignment mistakes. This amount is added to both the start "
+            "and end of the tube, increasing the total cut length."
+        )
+
     def build_direction_selector(
         self,
         primary_axis: str,
@@ -229,8 +247,7 @@ class BendSheetDialogBuilder:
         opposite_direction: str,
         saved_reversed: bool = False,
     ) -> None:
-        """
-        Create direction info text and radio button selector.
+        """Create direction info text and radio button selector.
 
         Args:
             primary_axis: The detected primary axis (X, Y, or Z)
@@ -266,8 +283,7 @@ class BendSheetDialogBuilder:
         current_direction: str,
         opposite_direction: str,
     ) -> None:
-        """
-        Build all dialog components.
+        """Build all dialog components.
 
         Args:
             detected_clr: CLR detected from geometry
@@ -297,12 +313,22 @@ class BendSheetDialogBuilder:
             saved_reversed,
         )
 
+        # Populate values from pre-selected bender/die (when restoring saved settings)
+        if selected_bender_idx > 0 and self._profile_manager:
+            bender = self._profile_manager.benders[selected_bender_idx - 1]
+            self._state.apply_bender_values(bender)
+
+            # Set die values if a die is pre-selected
+            if saved_settings and saved_settings.die_id:
+                die = bender.get_die_by_id(saved_settings.die_id)
+                if die:
+                    self._state.apply_die_values(die)
+
     def update_die_dropdown_for_bender(
         self,
         bender_name: str,
     ) -> None:
-        """
-        Update die dropdown when bender selection changes.
+        """Update die dropdown when bender selection changes.
 
         Clears existing dies and populates with dies from selected bender.
 
@@ -311,9 +337,6 @@ class BendSheetDialogBuilder:
         """
         die_dropdown = adsk.core.DropDownCommandInput.cast(
             self._inputs.itemById("die")
-        )
-        min_grip_input = adsk.core.ValueCommandInput.cast(
-            self._inputs.itemById("min_grip")
         )
 
         if not die_dropdown:
@@ -325,22 +348,20 @@ class BendSheetDialogBuilder:
             items.item(i).deleteMe()
 
         # Add default option
-        items.add("(Manual Entry)", True)
+        items.add(DieFilter.MANUAL_ENTRY_DIE, True)
 
-        # If manual entry bender, we're done
-        if bender_name == "(None - Manual Entry)" or not self._profile_manager:
+        # If manual entry bender, enable all inputs for manual entry
+        if DieFilter.is_manual_entry_bender(bender_name) or not self._profile_manager:
+            self._state.enable_manual_entry()
             return
 
         # Load fresh data and find bender
-        self._profile_manager.load()
-        bender = self._profile_manager.get_bender_by_name(bender_name)
+        bender = self._die_filter.get_bender_by_name(bender_name)
         if not bender:
             return
 
-        # Set min grip from bender
-        if min_grip_input:
-            min_grip_cm = bender.min_grip / self._units.cm_to_unit
-            min_grip_input.value = min_grip_cm
+        # Apply bender values (min_grip disabled, die fields enabled)
+        self._state.apply_bender_values(bender)
 
         # Add dies
         for die in bender.dies:
@@ -351,45 +372,20 @@ class BendSheetDialogBuilder:
         bender_name: str,
         die_name: str,
     ) -> None:
-        """
-        Update value inputs when die selection changes.
+        """Update value inputs when die selection changes.
 
         Args:
             bender_name: Name of selected bender
             die_name: Name of selected die (may include match indicator)
         """
-        die_offset_input = adsk.core.ValueCommandInput.cast(
-            self._inputs.itemById("die_offset")
-        )
-        tube_od_input = adsk.core.ValueCommandInput.cast(
-            self._inputs.itemById("tube_od")
-        )
-        min_tail_input = adsk.core.ValueCommandInput.cast(
-            self._inputs.itemById("min_tail")
-        )
-
-        # Clean die name (remove CLR match indicator)
-        clean_die_name = die_name.replace(" \u2713", "")
-
-        if clean_die_name == "(Manual Entry)" or not self._profile_manager:
+        # If manual entry die, enable die-related inputs for user editing
+        if DieFilter.is_manual_entry_die(die_name) or not self._profile_manager:
+            self._state.enable_die_inputs()
             return
 
-        if bender_name == "(None - Manual Entry)":
+        if DieFilter.is_manual_entry_bender(bender_name):
             return
 
-        bender = self._profile_manager.get_bender_by_name(bender_name)
-        if not bender:
-            return
-
-        for die in bender.dies:
-            if die.name == clean_die_name:
-                if die_offset_input:
-                    die_offset_cm = die.offset / self._units.cm_to_unit
-                    die_offset_input.value = die_offset_cm
-                if tube_od_input:
-                    tube_od_cm = die.tube_od / self._units.cm_to_unit
-                    tube_od_input.value = tube_od_cm
-                if min_tail_input:
-                    min_tail_cm = die.min_tail / self._units.cm_to_unit
-                    min_tail_input.value = min_tail_cm
-                break
+        die = self._die_filter.get_die_by_name(bender_name, die_name)
+        if die:
+            self._state.apply_die_values(die)

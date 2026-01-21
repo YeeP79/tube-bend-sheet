@@ -81,3 +81,10 @@ class BendSheetData:
     grip_violations: list[int] = field(default_factory=list)  # Straight section numbers too short for min_grip
     min_tail: float = 0.0  # Minimum length required after last bend
     tail_violation: bool = False  # True if last straight is shorter than min_tail
+    # Synthetic grip/tail fields for paths starting/ending with bends
+    has_synthetic_grip: bool = False  # True if synthetic grip material was added
+    has_synthetic_tail: bool = False  # True if synthetic tail material was added
+    grip_cut_position: float | None = None  # Where to cut grip material from start
+    tail_cut_position: float | None = None  # Where to cut tail material from end
+    # Extra allowance (fudge factor) added to each end
+    extra_allowance: float = 0.0  # Extra material per end for alignment tolerance

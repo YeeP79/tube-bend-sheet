@@ -5,12 +5,11 @@ from __future__ import annotations
 import math
 
 from ..models.types import Vector3D, Point3D
+from .tolerances import CONNECTIVITY_CM, ZERO_MAGNITUDE
 
-# Tolerance for point connectivity (in cm, Fusion internal units)
-CONNECTIVITY_TOLERANCE_CM: float = 0.1
-
-# Tolerance for zero-length vector detection
-ZERO_MAGNITUDE_TOLERANCE: float = 1e-10
+# Re-export for backward compatibility
+CONNECTIVITY_TOLERANCE_CM: float = CONNECTIVITY_CM
+ZERO_MAGNITUDE_TOLERANCE: float = ZERO_MAGNITUDE
 
 
 class ZeroVectorError(ValueError):

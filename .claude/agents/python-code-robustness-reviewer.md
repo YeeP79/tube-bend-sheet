@@ -1,6 +1,7 @@
 ---
 name: python-code-robustness-reviewer
-description: |
+description: Expert code robustness reviewer for Python Autodesk Fusion add-ins. Specializes in SOLID principles, type safety, defensive programming, and input validation. Use for code reviews after changes or for comprehensive codebase analysis. Invoke with "review repository", "review diff", or "review changes".
+tools: Read, Grep, Glob, Bash
 model: opus
 color: yellow
 ---

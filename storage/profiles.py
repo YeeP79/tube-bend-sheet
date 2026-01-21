@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import json
+import threading
 import uuid
 from pathlib import Path
 
-from ..models.bender import Bender, Die
+from ..models.bender import (
+    Bender,
+    Die,
+    validate_bender_values,
+    validate_die_values,
+)
 
 
 class ProfileSaveError(IOError):
@@ -38,7 +44,7 @@ class ProfileManager:
     def __init__(self, addin_path: str) -> None:
         """
         Initialize the profile manager.
-        
+
         Args:
             addin_path: Path to the add-in root directory
         """
@@ -47,12 +53,18 @@ class ProfileManager:
         self._profiles_path = self._resources_path / self.FILENAME
         self._benders: list[Bender] = []
         self._loaded = False
+        self._load_lock = threading.Lock()
     
     @property
     def benders(self) -> list[Bender]:
-        """Get all bender profiles."""
-        if not self._loaded:
-            self.load()
+        """Get all bender profiles.
+
+        Thread-safe lazy loading using a lock to prevent race conditions
+        when multiple threads access benders simultaneously.
+        """
+        with self._load_lock:
+            if not self._loaded:
+                self.load()
         return self._benders
 
     def reload(self) -> None:
@@ -266,8 +278,7 @@ class ProfileManager:
             return False
 
         # Validate min_grip before updating
-        if min_grip is not None and min_grip <= 0:
-            raise ValueError(f"min_grip must be positive, got {min_grip}")
+        validate_bender_values(min_grip=min_grip)
 
         if name is not None:
             bender.name = name
@@ -351,14 +362,12 @@ class ProfileManager:
             return False
 
         # Validate numeric values before updating
-        if tube_od is not None and tube_od <= 0:
-            raise ValueError(f"tube_od must be positive, got {tube_od}")
-        if clr is not None and clr <= 0:
-            raise ValueError(f"clr must be positive, got {clr}")
-        if offset is not None and offset < 0:
-            raise ValueError(f"offset cannot be negative, got {offset}")
-        if min_tail is not None and min_tail < 0:
-            raise ValueError(f"min_tail cannot be negative, got {min_tail}")
+        validate_die_values(
+            tube_od=tube_od,
+            clr=clr,
+            offset=offset,
+            min_tail=min_tail,
+        )
 
         if name is not None:
             die.name = name

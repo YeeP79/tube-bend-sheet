@@ -6,11 +6,18 @@ and validate path structure for tube bending operations.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import TypeVar
+
 from .geometry import points_are_close
-from .geometry_extraction import PathElement
+from .geometry_extraction import PathElementLike
 
 
-def elements_are_connected(e1: PathElement, e2: PathElement) -> bool:
+# Type variable for preserving element types through functions
+_T = TypeVar('_T', bound=PathElementLike)
+
+
+def elements_are_connected(e1: PathElementLike, e2: PathElementLike) -> bool:
     """Check if two path elements share an endpoint."""
     for p1 in e1.endpoints:
         for p2 in e2.endpoints:
@@ -20,8 +27,8 @@ def elements_are_connected(e1: PathElement, e2: PathElement) -> bool:
 
 
 def build_ordered_path(
-    elements: list[PathElement],
-) -> tuple[list[PathElement] | None, str]:
+    elements: list[_T],
+) -> tuple[list[_T] | None, str]:
     """
     Sort path elements into connected order by traversing connectivity graph.
 
@@ -72,7 +79,7 @@ def build_ordered_path(
         )
 
     # Traverse from one endpoint to the other
-    ordered: list[PathElement] = []
+    ordered: list[_T] = []
     visited: set[int] = set()
     current: int | None = path_endpoints[0]
 
@@ -90,7 +97,7 @@ def build_ordered_path(
     return ordered, ""
 
 
-def validate_path_alternation(path: list[PathElement]) -> tuple[bool, str]:
+def validate_path_alternation(path: Sequence[PathElementLike]) -> tuple[bool, str]:
     """
     Validate that path alternates between lines and arcs.
 

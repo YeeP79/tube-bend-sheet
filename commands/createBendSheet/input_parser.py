@@ -12,6 +12,7 @@ import adsk.core
 
 from ...models import UnitConfig
 from ...storage import ProfileManager
+from .die_filter import DieFilter
 
 
 @dataclass(slots=True)
@@ -26,6 +27,7 @@ class BendSheetParams:
     die_offset: float  # In display units
     min_grip: float  # In display units
     min_tail: float  # In display units
+    extra_allowance: float  # In display units - extra material at each end
     precision: int
     travel_reversed: bool
 
@@ -167,7 +169,7 @@ class InputParser:
 
         if (
             bender_selection
-            and bender_selection != '(None - Manual Entry)'
+            and bender_selection != DieFilter.MANUAL_ENTRY_BENDER
             and profile_manager
         ):
             bender = profile_manager.get_bender_by_name(bender_selection)
@@ -175,9 +177,9 @@ class InputParser:
                 bender_name = bender.name
                 bender_id = bender.id
 
-                if die_selection and die_selection != '(Manual Entry)':
+                if die_selection and die_selection != DieFilter.MANUAL_ENTRY_DIE:
                     # Remove CLR match indicator if present
-                    clean_die_name = die_selection.replace(' ✓', '')
+                    clean_die_name = DieFilter.clean_die_name(die_selection)
                     for die in bender.dies:
                         if die.name == clean_die_name:
                             die_name = die.name
@@ -196,6 +198,7 @@ class InputParser:
             die_offset=self.get_value_input('die_offset'),
             min_grip=self.get_value_input('min_grip'),
             min_tail=self.get_value_input('min_tail'),
+            extra_allowance=self.get_value_input('extra_allowance'),
             precision=self.parse_precision(),
             travel_reversed=travel_reversed,
         )

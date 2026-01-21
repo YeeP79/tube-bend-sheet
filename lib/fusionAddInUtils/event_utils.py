@@ -11,16 +11,30 @@
 
 import sys
 from collections.abc import Callable
-from typing import Any
+from typing import Protocol, runtime_checkable
 
 import adsk.core
 from .general_utils import handle_error
 
-__all__ = ['add_handler', 'clear_handlers']
+__all__ = ['add_handler', 'clear_handlers', 'FusionHandler']
+
+
+@runtime_checkable
+class FusionHandler(Protocol):
+    """Protocol for Fusion event handlers.
+
+    All Fusion event handlers have a notify method that receives
+    EventArgs (or a subclass). This protocol enables type-safe
+    handler storage.
+    """
+
+    def notify(self, args: adsk.core.EventArgs) -> None:
+        """Handle an event notification."""
+        ...
 
 
 # Global Variable to hold Event Handlers
-_handlers: list[Any] = []
+_handlers: list[FusionHandler] = []
 
 
 def add_handler(
@@ -28,8 +42,8 @@ def add_handler(
         callback: Callable,
         *,
         name: str | None = None,
-        local_handlers: list[Any] | None = None
-):
+        local_handlers: list[FusionHandler] | None = None
+) -> FusionHandler:
     """Adds an event handler to the specified event.
 
     Arguments:
@@ -64,19 +78,22 @@ def clear_handlers():
 
 
 def _create_handler(
-        handler_type,
+        handler_type: type,
         callback: Callable,
         event: adsk.core.Event,
         name: str | None = None,
-        local_handlers: list[Any] | None = None
-):
+        local_handlers: list[FusionHandler] | None = None
+) -> FusionHandler:
     handler = _define_handler(handler_type, callback, name)()
-    (local_handlers if local_handlers is not None else _handlers).append(handler)
+    handler_list = local_handlers if local_handlers is not None else _handlers
+    initial_count = len(handler_list)
+    handler_list.append(handler)
+    assert len(handler_list) == initial_count + 1, "Handler not added to list"
     return handler
 
 
-def _define_handler(handler_type, callback, name: str = None):
-    name = name or handler_type.__name__
+def _define_handler(handler_type, callback, name: str | None = None):
+    handler_name: str = name or handler_type.__name__
 
     class Handler(handler_type):
         def __init__(self):
@@ -86,6 +103,6 @@ def _define_handler(handler_type, callback, name: str = None):
             try:
                 callback(args)
             except:
-                handle_error(name)
+                handle_error(handler_name)
 
     return Handler

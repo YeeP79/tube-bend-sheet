@@ -328,3 +328,54 @@ class TestGetPrecisionLabel:
     ) -> None:
         """Other decimal places show as description."""
         assert get_precision_label(5, metric_units) == "5 decimal places"
+
+
+class TestNaNInfGuards:
+    """Test NaN and Infinity handling in formatting functions."""
+
+    # format_metric NaN/Inf tests
+    def test_format_metric_nan_returns_error(self) -> None:
+        """NaN value should return ERROR string."""
+        assert format_metric(float('nan'), 2) == "ERROR"
+
+    def test_format_metric_positive_inf_returns_error(self) -> None:
+        """Positive infinity should return ERROR string."""
+        assert format_metric(float('inf'), 2) == "ERROR"
+
+    def test_format_metric_negative_inf_returns_error(self) -> None:
+        """Negative infinity should return ERROR string."""
+        assert format_metric(float('-inf'), 2) == "ERROR"
+
+    def test_format_metric_nan_auto_mode_returns_error(self) -> None:
+        """NaN value in auto mode (decimal_places=0) should return ERROR."""
+        assert format_metric(float('nan'), 0) == "ERROR"
+
+    # decimal_to_fraction (imperial) NaN/Inf tests
+    def test_decimal_to_fraction_nan_returns_error(self) -> None:
+        """NaN value should return ERROR string."""
+        assert decimal_to_fraction(float('nan'), 16) == "ERROR"
+
+    def test_decimal_to_fraction_positive_inf_returns_error(self) -> None:
+        """Positive infinity should return ERROR string."""
+        assert decimal_to_fraction(float('inf'), 16) == "ERROR"
+
+    def test_decimal_to_fraction_negative_inf_returns_error(self) -> None:
+        """Negative infinity should return ERROR string."""
+        assert decimal_to_fraction(float('-inf'), 16) == "ERROR"
+
+    def test_decimal_to_fraction_nan_exact_mode_returns_error(self) -> None:
+        """NaN value in exact mode (denominator=0) should return ERROR."""
+        assert decimal_to_fraction(float('nan'), 0) == "ERROR"
+
+    # format_length integration tests for NaN/Inf
+    def test_format_length_metric_nan_returns_error(
+        self, metric_units: UnitConfig
+    ) -> None:
+        """format_length with NaN in metric mode should return ERROR with unit."""
+        assert format_length(float('nan'), 1, metric_units) == "ERRORmm"
+
+    def test_format_length_imperial_nan_returns_error(
+        self, imperial_units: UnitConfig
+    ) -> None:
+        """format_length with NaN in imperial mode should return ERROR with unit."""
+        assert format_length(float('nan'), 16, imperial_units) == 'ERROR"'

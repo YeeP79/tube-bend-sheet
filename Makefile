@@ -15,7 +15,7 @@ lint:
 
 # Run type checker
 typecheck:
-	@pyright --project pyrightconfig.json
+	@pipx run pyright --project pyrightconfig.json
 
 # Run unit tests with pytest
 test:

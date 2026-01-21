@@ -9,15 +9,12 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any
 
 import pytest
 
-from models.bender import Bender, Die
+from models.bender import Bender, BenderDict, Die, DieDict
 from storage.profiles import ProfileManager
-
-if TYPE_CHECKING:
-    pass
 
 
 class TestBenderModel:
@@ -70,12 +67,12 @@ class TestBenderModel:
         assert data["dies"][0]["clr"] == 4.5
 
     def test_bender_from_dict(self):
-        data = {
+        data: BenderDict = {
             "id": "b1",
             "name": "Test Bender",
             "min_grip": 6.0,
             "dies": [
-                {"id": "d1", "name": "Die1", "tube_od": 1.5, "clr": 4.5, "offset": 0.5, "notes": ""}
+                {"id": "d1", "name": "Die1", "tube_od": 1.5, "clr": 4.5, "offset": 0.5, "min_tail": 0.0, "notes": ""}
             ],
             "notes": ""
         }
@@ -139,12 +136,13 @@ class TestBenderModel:
 
     def test_die_from_dict_clamps_negative_values(self):
         """Die.from_dict should clamp invalid values to valid ranges."""
-        data = {
+        data: DieDict = {
             "id": "1",
             "name": "Bad Die",
             "tube_od": -1.0,  # Invalid
             "clr": -4.5,      # Invalid
             "offset": -0.5,   # Invalid
+            "min_tail": 0.0,
             "notes": ""
         }
         die = Die.from_dict(data)
@@ -155,7 +153,7 @@ class TestBenderModel:
 
     def test_bender_from_dict_clamps_negative_min_grip(self):
         """Bender.from_dict should clamp invalid min_grip to valid range."""
-        data = {
+        data: BenderDict = {
             "id": "1",
             "name": "Bad Bender",
             "min_grip": -6.0,  # Invalid
@@ -165,6 +163,127 @@ class TestBenderModel:
         bender = Bender.from_dict(data)
         # Should be clamped to minimum valid value
         assert bender.min_grip == 0.001
+
+
+class TestDieValuesStoredInCentimeters:
+    """Test that die/bender values are stored in cm (Fusion's internal unit).
+
+    CRITICAL: All numeric values in benders.json are stored in centimeters.
+    When reading values for Fusion's ValueCommandInput.value property,
+    use the values directly WITHOUT conversion.
+
+    Conversion reference:
+    - 1 inch = 2.54 cm
+    - To display inches: value_cm * (1/2.54) = value_in
+    - Example: 4.445 cm * 0.3937 = 1.75"
+    """
+
+    def test_die_values_are_in_centimeters(self):
+        """Verify that known die values match expected cm conversions."""
+        # A 1.75" OD tube stored in cm
+        tube_od_inches = 1.75
+        tube_od_cm = tube_od_inches * 2.54  # 4.445 cm
+
+        die = Die(
+            id="test",
+            name="1.75\" die",
+            tube_od=tube_od_cm,
+            clr=5.5 * 2.54,  # 5.5" CLR = 13.97 cm
+            offset=0.709 * 2.54,  # ~0.709" offset = ~1.8 cm
+        )
+
+        # Values should be stored exactly as provided (in cm)
+        assert abs(die.tube_od - 4.445) < 0.001
+        assert abs(die.clr - 13.97) < 0.001
+        assert abs(die.offset - 1.80086) < 0.001
+
+    def test_bender_min_grip_is_in_centimeters(self):
+        """Verify that bender min_grip is stored in cm."""
+        # A 3.75" min grip stored in cm
+        min_grip_inches = 3.75
+        min_grip_cm = min_grip_inches * 2.54  # 9.525 cm
+
+        bender = Bender(
+            id="test",
+            name="Test Bender",
+            min_grip=min_grip_cm,
+        )
+
+        assert abs(bender.min_grip - 9.525) < 0.001
+
+    def test_roundtrip_preserves_exact_values(self):
+        """Ensure serialization doesn't apply any conversion."""
+        original_die = Die(
+            id="d1",
+            name="Test Die",
+            tube_od=4.445,  # cm
+            clr=13.97,  # cm
+            offset=1.80086,  # cm
+            min_tail=8.89,  # cm
+        )
+        original_bender = Bender(
+            id="b1",
+            name="Test Bender",
+            min_grip=9.525,  # cm
+            dies=[original_die],
+        )
+
+        # Roundtrip through dict
+        data = original_bender.to_dict()
+        restored_bender = Bender.from_dict(data)
+
+        # All values must be exactly preserved
+        assert restored_bender.min_grip == original_bender.min_grip
+        assert len(restored_bender.dies) == 1
+
+        restored_die = restored_bender.dies[0]
+        assert restored_die.tube_od == original_die.tube_od
+        assert restored_die.clr == original_die.clr
+        assert restored_die.offset == original_die.offset
+        assert restored_die.min_tail == original_die.min_tail
+
+    def test_production_benders_json_uses_cm(self):
+        """Verify actual benders.json values are in cm (not inches)."""
+        project_root = Path(__file__).parent.parent
+        json_path = project_root / "resources" / "benders.json"
+
+        if not json_path.exists():
+            pytest.skip(f"{json_path} does not exist")
+
+        with open(json_path) as f:
+            data: dict[str, Any] = json.load(f)
+
+        # Find the JD2 Model 3 bender
+        jd2_data = next(
+            (b for b in data["benders"] if b["name"] == "JD2 Model 3"),
+            None
+        )
+        assert jd2_data is not None, "JD2 Model 3 bender not found in production benders.json"
+
+        # min_grip should be ~9.525 cm (3.75"), not 3.75
+        assert jd2_data["min_grip"] > 5, (
+            f"min_grip {jd2_data['min_grip']} looks like inches, not cm. "
+            "Expected ~9.525 cm for 3.75 inches"
+        )
+
+        # Find the 1.75" x 5.5" CLR die
+        die_data = next(
+            (d for d in jd2_data["dies"] if "1.75" in d["name"] and "5.5" in d["name"]),
+            None
+        )
+        assert die_data is not None, "1.75\" x 5.5\" CLR die not found in JD2 Model 3 bender"
+
+        # tube_od should be ~4.445 cm (1.75"), not 1.75
+        assert die_data["tube_od"] > 3, (
+            f"tube_od {die_data['tube_od']} looks like inches, not cm. "
+            "Expected ~4.445 cm for 1.75 inches"
+        )
+
+        # clr should be ~13.97 cm (5.5"), not 5.5
+        assert die_data["clr"] > 10, (
+            f"clr {die_data['clr']} looks like inches, not cm. "
+            "Expected ~13.97 cm for 5.5 inches"
+        )
 
 
 class TestProfileManagerJSON:
@@ -180,7 +299,7 @@ class TestProfileManagerJSON:
             pytest.skip(f"{json_path} does not exist")
 
         with open(json_path) as f:
-            data = json.load(f)
+            data: dict[str, Any] = json.load(f)
 
         assert "benders" in data
         assert "version" in data
@@ -212,7 +331,7 @@ class TestProfileManagerJSON:
         try:
             # Load it back
             with open(temp_path) as f:
-                loaded = json.load(f)
+                loaded: dict[str, Any] = json.load(f)
 
             loaded_benders = [Bender.from_dict(b) for b in loaded["benders"]]
             assert len(loaded_benders) == 1
@@ -451,7 +570,7 @@ class TestProfileManagerOperations:
 
         result = profile_manager.find_die_for_clr(4.5)
         assert result is not None
-        found_bender, found_die = result
+        _found_bender, found_die = result
         assert found_die.clr == 4.5
 
     def test_find_die_for_clr_within_tolerance(
@@ -500,7 +619,7 @@ class TestProfileManagerOperations:
         # Externally modify the file
         json_path = tmp_path / 'resources' / 'benders.json'
         with open(json_path) as f:
-            data = json.load(f)
+            data: dict[str, Any] = json.load(f)
         data['benders'][0]['name'] = 'Modified'
         with open(json_path, 'w') as f:
             json.dump(data, f)
@@ -562,7 +681,7 @@ class TestProfileManagerAtomicWrite:
 
             # Verify content
             with open(json_path) as f:
-                loaded = json.load(f)
+                loaded: dict[str, Any] = json.load(f)
             assert loaded['benders'][0]['name'] == 'Test Bender'
 
     def test_corrupt_json_detection(self):

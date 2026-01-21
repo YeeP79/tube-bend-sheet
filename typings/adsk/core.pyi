@@ -1,7 +1,13 @@
 # Type stubs for adsk.core module
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 T = TypeVar('T')
+
+
+class Product:
+    """Base class for all Fusion products (Design, CAM, etc.)."""
+    pass
+
 
 class Application:
     @staticmethod
@@ -9,7 +15,7 @@ class Application:
     @property
     def userInterface(self) -> 'UserInterface': ...
     @property
-    def activeProduct(self) -> Any: ...
+    def activeProduct(self) -> Product | None: ...
     def log(self, message: str, level: 'LogLevels', log_type: 'LogTypes') -> None: ...
 
 class UserInterface:
@@ -110,6 +116,10 @@ class ValueCommandInput(CommandInput):
     def tooltipDescription(self) -> str: ...
     @tooltipDescription.setter
     def tooltipDescription(self, value: str) -> None: ...
+    @property
+    def isEnabled(self) -> bool: ...
+    @isEnabled.setter
+    def isEnabled(self, value: bool) -> None: ...
 
 class TextBoxCommandInput(CommandInput):
     pass
@@ -163,7 +173,7 @@ class Selections:
 
 class Selection:
     @property
-    def entity(self) -> Any: ...
+    def entity(self) -> Any: ...  # Dynamic type - cast to SketchLine, SketchArc, etc.
 
 class Workspaces:
     def itemById(self, id: str) -> 'Workspace | None': ...
@@ -202,7 +212,7 @@ class CommandControl(ToolbarControl):
 
 # Events
 class Event:
-    def add(self, handler: Any) -> None: ...
+    def add(self, handler: Any) -> None: ...  # Handler object with appropriate callback
 
 class CommandCreatedEvent(Event):
     pass
@@ -216,22 +226,26 @@ class InputChangedEvent(Event):
 class HTMLEvent(Event):
     pass
 
-# Event Args
-class CommandCreatedEventArgs:
+# Event Args - Base class for all event args
+class EventArgs:
+    """Base class for all Fusion event arguments."""
+    pass
+
+class CommandCreatedEventArgs(EventArgs):
     @property
     def command(self) -> Command: ...
 
-class CommandEventArgs:
+class CommandEventArgs(EventArgs):
     @property
     def command(self) -> Command: ...
 
-class InputChangedEventArgs:
+class InputChangedEventArgs(EventArgs):
     @property
     def input(self) -> CommandInput: ...
     @property
     def inputs(self) -> CommandInputs: ...
 
-class HTMLEventArgs:
+class HTMLEventArgs(EventArgs):
     @property
     def action(self) -> str: ...
     @property

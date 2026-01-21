@@ -8,7 +8,6 @@ for printing.
 from __future__ import annotations
 
 import os
-from typing import Any
 
 import adsk.core
 import adsk.fusion
@@ -41,8 +40,9 @@ PANEL_ID = config.PANEL_ID
 # Resource location for command icons
 ICON_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources', '')
 
-# Local list of event handlers to maintain references
-local_handlers: list[Any] = []
+# Handler list stores Fusion event handlers for lifetime management.
+# FusionHandler Protocol ensures type-safe handler storage.
+local_handlers: list[futil.FusionHandler] = []
 
 # Module-level profile manager (initialized in start)
 _profile_manager: ProfileManager | None = None
@@ -161,17 +161,20 @@ def command_created(args: adsk.core.CommandCreatedEventArgs) -> None:
     cmd.okButtonText = 'Create Bend Sheet'
 
     # Connect event handlers
-    futil.log(f'{CMD_NAME}: Connecting handlers...')
+    if config.DEBUG:
+        futil.log(f'{CMD_NAME}: Connecting handlers...')
     futil.add_handler(cmd.execute, command_execute, local_handlers=local_handlers)
     futil.add_handler(cmd.inputChanged, command_input_changed, local_handlers=local_handlers)
     futil.add_handler(cmd.destroy, command_destroy, local_handlers=local_handlers)
-    futil.log(f'{CMD_NAME}: Handlers connected, count = {len(local_handlers)}')
+    if config.DEBUG:
+        futil.log(f'{CMD_NAME}: Handlers connected, count = {len(local_handlers)}')
 
 
 def command_input_changed(args: adsk.core.InputChangedEventArgs) -> None:
     """Handle input changes - updates die list when bender changes."""
     try:
-        futil.log(f'{CMD_NAME}: input_changed - {args.input.id}')
+        if config.DEBUG:
+            futil.log(f'{CMD_NAME}: input_changed - {args.input.id}')
 
         changed_input = args.input
         inputs = args.inputs
@@ -261,9 +264,25 @@ def command_execute(args: adsk.core.CommandEventArgs) -> None:
         ordered_path = ordered_path[::-1]
         start_point = selection_result.end_point
         starts_with_arc, ends_with_arc = ends_with_arc, starts_with_arc
-        travel_direction = selection_result.opposite_direction
+        # Full label: "Front to Back" (current to opposite)
+        travel_direction = (
+            f"{selection_result.travel_direction} to "
+            f"{selection_result.opposite_direction}"
+        )
+        opposite_direction = (
+            f"{selection_result.opposite_direction} to "
+            f"{selection_result.travel_direction}"
+        )
     else:
-        travel_direction = selection_result.travel_direction
+        # Full label: "Back to Front" (opposite to current)
+        travel_direction = (
+            f"{selection_result.opposite_direction} to "
+            f"{selection_result.travel_direction}"
+        )
+        opposite_direction = (
+            f"{selection_result.travel_direction} to "
+            f"{selection_result.opposite_direction}"
+        )
 
     # Generate bend sheet data
     generator = BendSheetGenerator(units)
@@ -273,12 +292,16 @@ def command_execute(args: adsk.core.CommandEventArgs) -> None:
         params=params,
         component_name=selection_result.component_name,
         travel_direction=travel_direction,
+        opposite_direction=opposite_direction,
         starts_with_arc=starts_with_arc,
         ends_with_arc=ends_with_arc,
     )
 
     if not result.success:
-        ui.messageBox(result.error, 'Error')
+        error_msg = result.error
+        if result.suggestion:
+            error_msg += f"\n\nSuggestion: {result.suggestion}"
+        ui.messageBox(error_msg, 'Error')
         return
 
     # Save settings to document
@@ -291,6 +314,11 @@ def command_execute(args: adsk.core.CommandEventArgs) -> None:
             travel_reversed=params.travel_reversed,
         )
         AttributeManager.save_settings(selection_result.first_entity, settings)
+
+    # Guard: successful result must have data
+    if result.data is None:
+        ui.messageBox('Internal error: No bend sheet data generated', 'Error')
+        return
 
     # Display result
     display = BendSheetDisplay(ui)

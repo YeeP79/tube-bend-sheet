@@ -5,25 +5,14 @@ These tests use mock PathElement objects that don't require Fusion API.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import pytest
 
+from helpers import MockPathElement
 from core.path_ordering import (
     build_ordered_path,
     elements_are_connected,
     validate_path_alternation,
 )
-from models.types import Point3D, ElementType
-
-
-@dataclass
-class MockPathElement:
-    """Mock PathElement for testing without Fusion API."""
-
-    element_type: ElementType
-    endpoints: tuple[Point3D, Point3D]
-    entity: None = None  # Not needed for these tests
 
 
 # Test fixtures for common path patterns
@@ -160,7 +149,7 @@ class TestValidatePathAlternation:
             MockPathElement('line', ((0, 0, 0), (1, 0, 0))),
             MockPathElement('arc', ((1, 0, 0), (2, 0, 0))),
         ]
-        is_valid, error = validate_path_alternation(path)
+        is_valid, _error = validate_path_alternation(path)
         assert is_valid is True
 
     # Defensive: Invalid patterns
@@ -299,7 +288,7 @@ class TestBuildOrderedPath:
         e3 = MockPathElement('line', ((2, 0, 0), (3, 0, 0)))
         e4 = MockPathElement('arc', ((3, 0, 0), (4, 0, 0)))
 
-        ordered, error = build_ordered_path([e3, e1, e4, e2])
+        ordered, _error = build_ordered_path([e3, e1, e4, e2])
 
         assert ordered is not None
         assert len(ordered) == 4

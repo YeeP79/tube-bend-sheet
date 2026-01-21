@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 from ..models.units import UnitConfig
 
 
@@ -24,7 +26,12 @@ def decimal_to_fraction(value: float, denominator: int) -> str:
     Returns:
         Formatted string like "3 1/16" or "14" or "3.7890" (if exact)
         Negative values are prefixed with "-"
+        Returns "ERROR" if value is NaN or infinity
     """
+    # Guard against invalid float values
+    if math.isnan(value) or math.isinf(value):
+        return "ERROR"
+
     if denominator == 0:
         return f"{value:.4f}"
 
@@ -53,14 +60,19 @@ def decimal_to_fraction(value: float, denominator: int) -> str:
 def format_metric(value: float, decimal_places: int) -> str:
     """
     Format a metric value with appropriate decimal places.
-    
+
     Args:
         value: Value in metric units
         decimal_places: Number of decimal places (0=auto/smart rounding)
-        
+
     Returns:
         Formatted string like "10.5" or "100.25"
+        Returns "ERROR" if value is NaN or infinity
     """
+    # Guard against invalid float values
+    if math.isnan(value) or math.isinf(value):
+        return "ERROR"
+
     if decimal_places == 0:
         # Auto mode - use reasonable precision
         if abs(value) < 1:

@@ -7,12 +7,14 @@ bend sheet data from geometry and parameters.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from ...core import (
     validate_clr_consistency,
     calculate_straights_and_bends,
     build_segments_and_marks,
+    validate_direction_aware,
+    calculate_material_requirements,
 )
 from ...models import UnitConfig, BendSheetData
 
@@ -30,6 +32,7 @@ class GenerationResult:
     success: bool
     data: BendSheetData | None = None
     error: str = ""
+    suggestion: str = ""  # Suggestion for user (e.g., "try reversed direction")
 
 
 class BendSheetGenerator:
@@ -39,6 +42,7 @@ class BendSheetGenerator:
     - Validating CLR consistency
     - Calculating straights and bends
     - Building segments and mark positions
+    - Handling paths that start/end with bends (synthetic grip/tail)
     - Constructing complete BendSheetData
     """
 
@@ -58,6 +62,7 @@ class BendSheetGenerator:
         params: "BendSheetParams",
         component_name: str,
         travel_direction: str,
+        opposite_direction: str,
         starts_with_arc: bool,
         ends_with_arc: bool,
     ) -> GenerationResult:
@@ -69,7 +74,8 @@ class BendSheetGenerator:
             start_point: Starting point of the path
             params: Parsed input parameters
             component_name: Name of the component
-            travel_direction: Direction of travel along path
+            travel_direction: Direction of travel along path (e.g., "Back to Front")
+            opposite_direction: Opposite direction label (e.g., "Front to Back")
             starts_with_arc: Whether path starts with an arc
             ends_with_arc: Whether path ends with an arc
 
@@ -78,14 +84,23 @@ class BendSheetGenerator:
         """
         # Extract lines and arcs from ordered path
         lines: list[adsk.fusion.SketchLine] = [
-            e.entity for e in ordered_path if e.element_type == "line"
+            cast(adsk.fusion.SketchLine, e.entity)
+            for e in ordered_path if e.element_type == "line"
         ]
         arcs: list[adsk.fusion.SketchArc] = [
-            e.entity for e in ordered_path if e.element_type == "arc"
+            cast(adsk.fusion.SketchArc, e.entity)
+            for e in ordered_path if e.element_type == "arc"
         ]
 
         # Validate CLR consistency
         clr, clr_mismatch, clr_values = validate_clr_consistency(arcs, self._units)
+
+        # Validate CLR is usable for calculations (avoid NaN in arc length)
+        if clr <= 0 and arcs:
+            return GenerationResult(
+                success=False,
+                error="Invalid CLR detected (zero or negative). Check that arcs have valid radii.",
+            )
 
         # Calculate straights and bends
         straights, bends = calculate_straights_and_bends(
@@ -99,38 +114,58 @@ class BendSheetGenerator:
                 error="No straight sections found in path. Cannot generate bend sheet.",
             )
 
-        # Calculate extra material needed for grip
-        first_feed: float = straights[0].length - params.die_offset
-        extra_material: float = (
-            max(0.0, params.min_grip - first_feed) if params.min_grip > 0 else 0.0
+        # Direction-aware validation for middle straights
+        if params.min_grip > 0 and len(straights) > 2:
+            direction_result = validate_direction_aware(
+                straights,
+                params.min_grip,
+                params.min_tail,
+                travel_direction,
+                opposite_direction,
+            )
+            if not direction_result.current_direction_valid:
+                return GenerationResult(
+                    success=False,
+                    error=direction_result.error_message,
+                    suggestion=direction_result.suggestion,
+                )
+
+        # Calculate grip/tail material requirements
+        material = calculate_material_requirements(
+            straights=straights,
+            min_grip=params.min_grip,
+            min_tail=params.min_tail,
+            die_offset=params.die_offset,
+            starts_with_arc=starts_with_arc,
+            ends_with_arc=ends_with_arc,
         )
-
-        # Validate straight sections against min_grip
-        # Check first straight and all straights between bends (not the last one)
-        grip_violations: list[int] = []
-        if params.min_grip > 0 and len(straights) > 1:
-            sections_to_check = straights[:-1]  # All except the last one
-            for straight in sections_to_check:
-                if straight.length < params.min_grip:
-                    grip_violations.append(straight.number)
-
-        # Validate last straight section against min_tail
-        tail_violation: bool = False
-        if params.min_tail > 0 and len(straights) > 0:
-            last_straight = straights[-1]
-            if last_straight.length < params.min_tail:
-                tail_violation = True
 
         # Build segments and mark positions
         segments, mark_positions = build_segments_and_marks(
-            straights, bends, extra_material, params.die_offset
+            straights, bends, material.extra_material, params.die_offset
         )
 
         # Calculate totals
         total_straights: float = sum(s.length for s in straights)
         total_arcs: float = sum(b.arc_length for b in bends)
         total_centerline: float = total_straights + total_arcs
-        total_cut_length: float = total_centerline + extra_material
+        # Extra allowance is added to both ends (2x)
+        total_extra_allowance: float = params.extra_allowance * 2
+        total_cut_length: float = (
+            total_centerline
+            + material.extra_material
+            + material.synthetic_tail_material
+            + total_extra_allowance
+        )
+
+        # Calculate tail cut position if synthetic tail was added
+        tail_cut_position: float | None = None
+        if material.has_synthetic_tail:
+            tail_cut_position = (
+                total_cut_length
+                - material.synthetic_tail_material
+                - params.extra_allowance
+            )
 
         # Build sheet data
         sheet_data = BendSheetData(
@@ -150,15 +185,20 @@ class BendSheetGenerator:
             bends=bends,
             segments=segments,
             mark_positions=mark_positions,
-            extra_material=extra_material,
+            extra_material=material.extra_material,
             total_centerline=total_centerline,
             total_cut_length=total_cut_length,
             units=self._units,
             bender_name=params.bender_name,
             die_name=params.die_name,
-            grip_violations=grip_violations,
+            grip_violations=material.grip_violations,
             min_tail=params.min_tail,
-            tail_violation=tail_violation,
+            tail_violation=material.tail_violation,
+            has_synthetic_grip=material.has_synthetic_grip,
+            has_synthetic_tail=material.has_synthetic_tail,
+            grip_cut_position=material.grip_cut_position,
+            tail_cut_position=tail_cut_position,
+            extra_allowance=params.extra_allowance,
         )
 
         return GenerationResult(success=True, data=sheet_data)
