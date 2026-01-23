@@ -41,6 +41,7 @@ sys.modules['core.calculations'] = core.calculations
 sys.modules['core.formatting'] = core.formatting
 sys.modules['core.html_generator'] = core.html_generator
 sys.modules['core.grip_tail'] = core.grip_tail
+sys.modules['core.direction_validation'] = core.direction_validation
 
 sys.modules['models.bender'] = models.bender
 sys.modules['models.bend_data'] = models.bend_data

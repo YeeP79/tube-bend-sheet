@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
+import adsk.fusion
+
 from ...core import (
     validate_clr_consistency,
     calculate_straights_and_bends,
@@ -19,8 +21,6 @@ from ...core import (
 from ...models import UnitConfig, BendSheetData
 
 if TYPE_CHECKING:
-    import adsk.fusion
-
     from ...core import PathElement
     from .input_parser import BendSheetParams
 

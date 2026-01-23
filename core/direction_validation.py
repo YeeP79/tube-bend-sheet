@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from models import StraightSection
+from ..models import StraightSection
 
 
 @dataclass(slots=True)
