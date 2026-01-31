@@ -385,12 +385,16 @@ class TestGenerateHtmlBendSheet:
 class TestProcedureCutInstructions:
     """Test procedure generation for cut instructions with allowance."""
 
-    def test_extra_allowance_only_shows_end_cut(
+    def test_allowance_only_shows_cut_instructions(
         self, minimal_bend_sheet_data: BendSheetData
     ) -> None:
-        """Extra allowance without grip material shows end cut instruction."""
+        """Start/end allowance without grip material shows cut instructions."""
         minimal_bend_sheet_data.extra_material = 0.0
-        minimal_bend_sheet_data.extra_allowance = 0.5
+        minimal_bend_sheet_data.start_allowance = 0.5
+        minimal_bend_sheet_data.end_allowance = 0.5
+        # When there's no grip extension, effective allowances apply
+        minimal_bend_sheet_data.effective_start_allowance = 0.5
+        minimal_bend_sheet_data.effective_end_allowance = 0.5
         minimal_bend_sheet_data.total_cut_length = 22.14  # Added 1" (0.5 each end)
 
         html = generate_html_bend_sheet(minimal_bend_sheet_data)
@@ -405,7 +409,11 @@ class TestProcedureCutInstructions:
     ) -> None:
         """Grip material + allowance are combined in start cut instruction."""
         minimal_bend_sheet_data.extra_material = 1.5  # Grip
-        minimal_bend_sheet_data.extra_allowance = 0.5  # Allowance
+        minimal_bend_sheet_data.start_allowance = 0.5
+        minimal_bend_sheet_data.end_allowance = 0.5
+        # User opted in to add allowance even with grip extension
+        minimal_bend_sheet_data.effective_start_allowance = 0.5
+        minimal_bend_sheet_data.effective_end_allowance = 0.5
         minimal_bend_sheet_data.total_cut_length = 23.14
 
         html = generate_html_bend_sheet(minimal_bend_sheet_data)
@@ -423,7 +431,11 @@ class TestProcedureCutInstructions:
     ) -> None:
         """Synthetic tail + allowance are combined in end cut instruction."""
         minimal_bend_sheet_data.extra_material = 0.0
-        minimal_bend_sheet_data.extra_allowance = 0.5
+        minimal_bend_sheet_data.start_allowance = 0.5
+        minimal_bend_sheet_data.end_allowance = 0.5
+        # Synthetic tail doesn't affect effective allowances
+        minimal_bend_sheet_data.effective_start_allowance = 0.5
+        minimal_bend_sheet_data.effective_end_allowance = 0.5
         minimal_bend_sheet_data.has_synthetic_tail = True
         minimal_bend_sheet_data.tail_cut_position = 20.0
         minimal_bend_sheet_data.total_cut_length = 23.0  # 20 + 2.5 tail + 0.5 allowance
@@ -440,7 +452,11 @@ class TestProcedureCutInstructions:
     ) -> None:
         """All material types (grip, allowance, tail) handled correctly."""
         minimal_bend_sheet_data.extra_material = 2.0  # Grip
-        minimal_bend_sheet_data.extra_allowance = 0.5  # Allowance per end
+        minimal_bend_sheet_data.start_allowance = 0.5
+        minimal_bend_sheet_data.end_allowance = 0.5
+        # User opted in to add allowance even with grip extension
+        minimal_bend_sheet_data.effective_start_allowance = 0.5
+        minimal_bend_sheet_data.effective_end_allowance = 0.5
         minimal_bend_sheet_data.has_synthetic_tail = True
         minimal_bend_sheet_data.tail_cut_position = 22.0
         minimal_bend_sheet_data.total_cut_length = 26.0
@@ -457,7 +473,8 @@ class TestProcedureCutInstructions:
     ) -> None:
         """No extra material means no cut instructions in procedure."""
         minimal_bend_sheet_data.extra_material = 0.0
-        minimal_bend_sheet_data.extra_allowance = 0.0
+        minimal_bend_sheet_data.start_allowance = 0.0
+        minimal_bend_sheet_data.end_allowance = 0.0
         minimal_bend_sheet_data.has_synthetic_tail = False
 
         html = generate_html_bend_sheet(minimal_bend_sheet_data)
@@ -471,7 +488,8 @@ class TestProcedureCutInstructions:
     ) -> None:
         """Only grip material (no allowance) shows only start cut."""
         minimal_bend_sheet_data.extra_material = 2.0
-        minimal_bend_sheet_data.extra_allowance = 0.0
+        minimal_bend_sheet_data.start_allowance = 0.0
+        minimal_bend_sheet_data.end_allowance = 0.0
         minimal_bend_sheet_data.has_synthetic_tail = False
 
         html = generate_html_bend_sheet(minimal_bend_sheet_data)

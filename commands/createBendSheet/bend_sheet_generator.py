@@ -140,7 +140,17 @@ class BendSheetGenerator:
             die_offset=params.die_offset,
             starts_with_arc=starts_with_arc,
             ends_with_arc=ends_with_arc,
-            extra_allowance=params.extra_allowance,
+            start_allowance=params.start_allowance,
+            end_allowance=params.end_allowance,
+            add_allowance_with_grip_extension=params.add_allowance_with_grip_extension,
+            add_allowance_with_tail_extension=params.add_allowance_with_tail_extension,
+        )
+
+        # Determine if spring back warning is needed
+        # This occurs when tail is extended but effective end allowance is 0
+        spring_back_warning = (
+            material.has_tail_extension and
+            material.effective_end_allowance == 0
         )
 
         # Build segments and mark positions
@@ -152,22 +162,31 @@ class BendSheetGenerator:
         total_straights: float = sum(s.length for s in straights)
         total_arcs: float = sum(b.arc_length for b in bends)
         total_centerline: float = total_straights + total_arcs
-        # Extra allowance is added to both ends (2x)
-        total_extra_allowance: float = params.extra_allowance * 2
+
+        # Calculate total cut length:
+        # - Base centerline length
+        # - Grip extension at start (extra_material) if needed
+        # - Tail extension at end (extra_tail_material) if last straight < min_tail
+        # - Synthetic tail material if path ends with arc
+        # - Effective allowances at each end (may be 0 if extensions were added)
         total_cut_length: float = (
             total_centerline
             + material.extra_material
+            + material.extra_tail_material
             + material.synthetic_tail_material
-            + total_extra_allowance
+            + material.effective_start_allowance
+            + material.effective_end_allowance
         )
 
-        # Calculate tail cut position if synthetic tail was added
+        # Calculate tail cut position for post-bend trimming
+        # Cut position is at the end of original centerline + grip extension + start allowance
+        # (any tail extension material and end allowance are beyond this point, to be trimmed)
         tail_cut_position: float | None = None
-        if material.has_synthetic_tail:
+        if material.has_synthetic_tail or material.has_tail_extension:
             tail_cut_position = (
-                total_cut_length
-                - material.synthetic_tail_material
-                - params.extra_allowance
+                total_centerline
+                + material.extra_material
+                + material.effective_start_allowance
             )
 
         # Build sheet data
@@ -194,6 +213,8 @@ class BendSheetGenerator:
             units=self._units,
             bender_name=params.bender_name,
             die_name=params.die_name,
+            bender_notes=params.bender_notes,
+            die_notes=params.die_notes,
             grip_violations=material.grip_violations,
             min_tail=params.min_tail,
             tail_violation=material.tail_violation,
@@ -201,7 +222,13 @@ class BendSheetGenerator:
             has_synthetic_tail=material.has_synthetic_tail,
             grip_cut_position=material.grip_cut_position,
             tail_cut_position=tail_cut_position,
-            extra_allowance=params.extra_allowance,
+            start_allowance=params.start_allowance,
+            end_allowance=params.end_allowance,
+            extra_tail_material=material.extra_tail_material,
+            has_tail_extension=material.has_tail_extension,
+            effective_start_allowance=material.effective_start_allowance,
+            effective_end_allowance=material.effective_end_allowance,
+            spring_back_warning=spring_back_warning,
         )
 
         return GenerationResult(success=True, data=sheet_data)

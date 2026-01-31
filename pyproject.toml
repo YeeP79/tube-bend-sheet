@@ -37,9 +37,18 @@ known-first-party = ["core", "models", "storage", "commands", "lib"]
 [tool.pyright]
 pythonVersion = "3.10"
 typeCheckingMode = "basic"
-reportMissingImports = "warning"
 reportMissingTypeStubs = false
-exclude = ["**/__pycache__"]
+# Suppress warnings for Fusion API modules that can't be resolved from source
+reportMissingModuleSource = false
+# Suppress warnings for missing imports (pytest, adsk.*, etc.)
+reportMissingImports = false
+# Exclude directories that are Fusion-runtime-only or third-party
+exclude = [
+    "**/__pycache__",
+    "lib/",           # Third-party Fusion utilities
+    "tests/",         # Test files with pytest imports
+    "typings/",       # Type stubs (not source code)
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

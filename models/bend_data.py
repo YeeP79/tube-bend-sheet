@@ -78,6 +78,8 @@ class BendSheetData:
     units: UnitConfig
     bender_name: str = ""
     die_name: str = ""
+    bender_notes: str = ""  # Notes from bender profile
+    die_notes: str = ""  # Notes from die profile
     grip_violations: list[int] = field(default_factory=list)  # Straight section numbers too short for min_grip
     min_tail: float = 0.0  # Minimum length required after last bend
     tail_violation: bool = False  # True if last straight is shorter than min_tail
@@ -86,5 +88,14 @@ class BendSheetData:
     has_synthetic_tail: bool = False  # True if synthetic tail material was added
     grip_cut_position: float | None = None  # Where to cut grip material from start
     tail_cut_position: float | None = None  # Where to cut tail material from end
-    # Extra allowance (fudge factor) added to each end
-    extra_allowance: float = 0.0  # Extra material per end for alignment tolerance
+    # User-entered allowances (separate for each end)
+    start_allowance: float = 0.0  # Extra material at start (grip end)
+    end_allowance: float = 0.0  # Extra material at end (tail end)
+    # Tail extension fields for paths ending with short straights
+    extra_tail_material: float = 0.0  # Material added when last straight < min_tail
+    has_tail_extension: bool = False  # True if tail was extended (not synthetic)
+    # Effective allowances (may be 0 if grip/tail was extended)
+    effective_start_allowance: float = 0.0  # Allowance at start (0 if grip extended)
+    effective_end_allowance: float = 0.0  # Allowance at end (0 if tail extended)
+    # Spring back warning
+    spring_back_warning: bool = False  # True when tail extended but no end allowance

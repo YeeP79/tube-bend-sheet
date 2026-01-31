@@ -394,11 +394,11 @@ class TestCalculateMaterialRequirements:
         assert result.tail_violation is False
 
 
-class TestExtraAllowanceAffectsViolations:
-    """Test that extra_allowance is factored into grip/tail violation checks."""
+class TestAllowanceAffectsViolations:
+    """Test that start/end allowances are factored into grip/tail violation checks."""
 
-    def test_allowance_prevents_grip_violation_on_first_straight(self) -> None:
-        """First straight + allowance >= min_grip means no violation."""
+    def test_start_allowance_prevents_grip_violation_on_first_straight(self) -> None:
+        """First straight + start_allowance >= min_grip means no violation."""
         straights = [
             StraightSection(1, 3.25, (0, 0, 0), (3.25, 0, 0), (3.25, 0, 0)),
             StraightSection(2, 4.0, (3.25, 0, 0), (7.25, 0, 0), (4.0, 0, 0)),
@@ -411,12 +411,12 @@ class TestExtraAllowanceAffectsViolations:
             die_offset=0.0,
             starts_with_arc=False,
             ends_with_arc=False,
-            extra_allowance=0.5,
+            start_allowance=0.5,
         )
         assert 1 not in result.grip_violations
 
-    def test_allowance_prevents_tail_violation(self) -> None:
-        """Last straight + allowance >= min_tail means no violation."""
+    def test_end_allowance_prevents_tail_violation(self) -> None:
+        """Last straight + end_allowance >= min_tail means no violation."""
         straights = [
             StraightSection(1, 4.0, (0, 0, 0), (4.0, 0, 0), (4.0, 0, 0)),
             StraightSection(2, 3.0, (4.0, 0, 0), (7.0, 0, 0), (3.0, 0, 0)),
@@ -429,7 +429,7 @@ class TestExtraAllowanceAffectsViolations:
             die_offset=0.0,
             starts_with_arc=False,
             ends_with_arc=False,
-            extra_allowance=0.5,
+            end_allowance=0.5,
         )
         assert result.tail_violation is False
 
@@ -447,7 +447,7 @@ class TestExtraAllowanceAffectsViolations:
             die_offset=0.0,
             starts_with_arc=False,
             ends_with_arc=False,
-            extra_allowance=0.5,
+            start_allowance=0.5,
         )
         assert 1 in result.grip_violations
 
@@ -466,7 +466,8 @@ class TestExtraAllowanceAffectsViolations:
             die_offset=0.0,
             starts_with_arc=False,
             ends_with_arc=False,
-            extra_allowance=0.5,
+            start_allowance=0.5,
+            end_allowance=0.5,
         )
         assert 2 in result.grip_violations
 
@@ -483,7 +484,244 @@ class TestExtraAllowanceAffectsViolations:
             die_offset=0.0,
             starts_with_arc=False,
             ends_with_arc=False,
-            extra_allowance=0.0,
+            start_allowance=0.0,
+            end_allowance=0.0,
         )
         # 3.25 < 3.75, should have violation
         assert 1 in result.grip_violations
+
+
+class TestExtraTailMaterial:
+    """Test extra_tail_material calculation when last straight < min_tail.
+
+    This is the key bug fix: when the path ends with a straight (not an arc)
+    and that straight is shorter than min_tail, we need to add extra material
+    that will be cut off after bending.
+    """
+
+    def test_extra_tail_material_when_last_straight_insufficient(self) -> None:
+        """Extra tail material added when last straight < min_tail."""
+        # Simulates the user's example: last straight = 3.875", min_tail = 6.5"
+        straights = [make_straight(1, 8.0), make_straight(2, 3.875)]
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=3.75,
+            min_tail=6.5,
+            die_offset=0.6875,
+            starts_with_arc=False,
+            ends_with_arc=False,
+        )
+        # Need 6.5 - 3.875 = 2.625 extra tail material
+        assert result.extra_tail_material == 2.625
+        assert result.has_tail_extension is True
+
+    def test_no_extra_tail_material_when_last_straight_sufficient(self) -> None:
+        """No extra tail material when last straight >= min_tail."""
+        straights = [make_straight(1, 8.0), make_straight(2, 7.0)]
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=3.75,
+            min_tail=6.5,
+            die_offset=0.6875,
+            starts_with_arc=False,
+            ends_with_arc=False,
+        )
+        assert result.extra_tail_material == 0.0
+        assert result.has_tail_extension is False
+
+    def test_no_extra_tail_material_when_exactly_at_min_tail(self) -> None:
+        """No extra tail material when last straight exactly equals min_tail."""
+        straights = [make_straight(1, 8.0), make_straight(2, 6.5)]
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=3.75,
+            min_tail=6.5,
+            die_offset=0.6875,
+            starts_with_arc=False,
+            ends_with_arc=False,
+        )
+        assert result.extra_tail_material == 0.0
+        assert result.has_tail_extension is False
+
+    def test_no_extra_tail_material_when_ends_with_arc(self) -> None:
+        """No extra tail material when path ends with arc (uses synthetic instead)."""
+        straights = [make_straight(1, 8.0), make_straight(2, 3.0)]
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=3.75,
+            min_tail=6.5,
+            die_offset=0.6875,
+            starts_with_arc=False,
+            ends_with_arc=True,  # Path ends with arc
+        )
+        # Should use synthetic_tail_material, not extra_tail_material
+        assert result.extra_tail_material == 0.0
+        assert result.has_tail_extension is False
+        assert result.synthetic_tail_material == 6.5
+        assert result.has_synthetic_tail is True
+
+    def test_no_extra_tail_material_when_min_tail_zero(self) -> None:
+        """No extra tail material when min_tail is 0."""
+        straights = [make_straight(1, 8.0), make_straight(2, 2.0)]
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=3.75,
+            min_tail=0.0,
+            die_offset=0.6875,
+            starts_with_arc=False,
+            ends_with_arc=False,
+        )
+        assert result.extra_tail_material == 0.0
+        assert result.has_tail_extension is False
+
+    def test_extra_tail_material_single_straight(self) -> None:
+        """Extra tail material works with single straight section."""
+        straights = [make_straight(1, 5.0)]
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=3.0,
+            min_tail=6.0,
+            die_offset=1.0,
+            starts_with_arc=False,
+            ends_with_arc=False,
+        )
+        # 5.0 < 6.0, need 1.0 extra
+        assert result.extra_tail_material == 1.0
+        assert result.has_tail_extension is True
+
+    def test_tail_cut_position_calculated(self) -> None:
+        """tail_cut_position is set when extra tail material is added."""
+        straights = [make_straight(1, 8.0), make_straight(2, 4.0)]
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=3.75,
+            min_tail=6.5,
+            die_offset=0.6875,
+            starts_with_arc=False,
+            ends_with_arc=False,
+        )
+        # extra_tail_material = 6.5 - 4.0 = 2.5
+        assert result.extra_tail_material == 2.5
+        # tail_cut_position should indicate where to cut (centerline length)
+        # Total centerline = 8.0 + 4.0 = 12.0
+        # tail_cut_position = centerline length (cut happens at end of original tube)
+        assert result.tail_cut_position is not None
+
+
+class TestAllowanceWithExtensions:
+    """Test allowance behavior when grip/tail extensions are added.
+
+    The default behavior should be to skip allowance when extensions are added,
+    since there's already extra material to cut off. Users can opt-in to add
+    allowance anyway via parameters.
+    """
+
+    def test_effective_start_allowance_zero_when_grip_extended(self) -> None:
+        """By default, start allowance is 0 when grip extension is added."""
+        straights = [make_straight(1, 4.0), make_straight(2, 8.0)]
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=6.0,
+            min_tail=4.0,
+            die_offset=2.0,  # first_feed = 4.0 - 2.0 = 2.0, needs 4.0 extra
+            starts_with_arc=False,
+            ends_with_arc=False,
+            start_allowance=0.5,
+            end_allowance=0.5,
+        )
+        # extra_material = 4.0 (grip extension)
+        assert result.extra_material == 4.0
+        # effective_start_allowance should be 0 since grip was extended
+        assert result.effective_start_allowance == 0.0
+
+    def test_effective_end_allowance_zero_when_tail_extended(self) -> None:
+        """By default, end allowance is 0 when tail extension is added."""
+        straights = [make_straight(1, 10.0), make_straight(2, 4.0)]
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=6.0,
+            min_tail=6.5,
+            die_offset=2.0,
+            starts_with_arc=False,
+            ends_with_arc=False,
+            start_allowance=0.5,
+            end_allowance=0.5,
+        )
+        # extra_tail_material = 6.5 - 4.0 = 2.5
+        assert result.extra_tail_material == 2.5
+        # effective_end_allowance should be 0 since tail was extended
+        assert result.effective_end_allowance == 0.0
+
+    def test_allowance_added_when_no_extension_needed(self) -> None:
+        """Allowance is added when no grip/tail extension is needed."""
+        straights = [make_straight(1, 10.0), make_straight(2, 8.0)]
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=6.0,
+            min_tail=6.0,
+            die_offset=2.0,  # first_feed = 10.0 - 2.0 = 8.0 >= 6.0, no extension
+            starts_with_arc=False,
+            ends_with_arc=False,
+            start_allowance=0.5,
+            end_allowance=0.5,
+        )
+        # No extensions needed
+        assert result.extra_material == 0.0
+        assert result.extra_tail_material == 0.0
+        # Allowances should be applied
+        assert result.effective_start_allowance == 0.5
+        assert result.effective_end_allowance == 0.5
+
+    def test_start_allowance_with_grip_extension_when_opted_in(self) -> None:
+        """Start allowance added with grip extension when add_allowance_with_grip_extension=True."""
+        straights = [make_straight(1, 4.0), make_straight(2, 8.0)]
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=6.0,
+            min_tail=4.0,
+            die_offset=2.0,
+            starts_with_arc=False,
+            ends_with_arc=False,
+            start_allowance=0.5,
+            end_allowance=0.5,
+            add_allowance_with_grip_extension=True,
+        )
+        assert result.extra_material == 4.0  # Grip extension still added
+        assert result.effective_start_allowance == 0.5  # Allowance also added
+
+    def test_end_allowance_with_tail_extension_when_opted_in(self) -> None:
+        """End allowance added with tail extension when add_allowance_with_tail_extension=True."""
+        straights = [make_straight(1, 10.0), make_straight(2, 4.0)]
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=6.0,
+            min_tail=6.5,
+            die_offset=2.0,
+            starts_with_arc=False,
+            ends_with_arc=False,
+            start_allowance=0.5,
+            end_allowance=0.5,
+            add_allowance_with_tail_extension=True,
+        )
+        assert result.extra_tail_material == 2.5  # Tail extension still added
+        assert result.effective_end_allowance == 0.5  # Allowance also added
+
+    def test_both_allowances_with_both_extensions_when_opted_in(self) -> None:
+        """Both allowances added with both extensions when both flags are True."""
+        straights = [make_straight(1, 4.0), make_straight(2, 4.0)]
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=6.0,
+            min_tail=6.5,
+            die_offset=2.0,
+            starts_with_arc=False,
+            ends_with_arc=False,
+            start_allowance=0.5,
+            end_allowance=0.5,
+            add_allowance_with_grip_extension=True,
+            add_allowance_with_tail_extension=True,
+        )
+        assert result.extra_material == 4.0
+        assert result.extra_tail_material == 2.5
+        assert result.effective_start_allowance == 0.5
+        assert result.effective_end_allowance == 0.5

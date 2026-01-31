@@ -279,8 +279,11 @@ def calculate_straights_and_bends(
 
         # Calculate rotation from previous bend (if applicable)
         rotation: float | None = None
-        if i > 0 and normals[i - 1] is not None and normals[i] is not None:
-            rotation = calculate_rotation(normals[i - 1], normals[i])
+        if i > 0:
+            prev_normal = normals[i - 1]
+            curr_normal = normals[i]
+            if prev_normal is not None and curr_normal is not None:
+                rotation = calculate_rotation(prev_normal, curr_normal)
 
         bends.append(BendData(
             number=i + 1,

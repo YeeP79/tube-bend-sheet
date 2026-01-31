@@ -21,7 +21,7 @@ class MaterialCalculation:
     """Result of grip/tail material calculations.
 
     Attributes:
-        extra_material: Total extra material to add at the start
+        extra_material: Total extra material to add at the start (grip extension)
         synthetic_grip_material: Material added for paths starting with arc
         synthetic_tail_material: Material added for paths ending with arc
         has_synthetic_grip: Whether synthetic grip material was added
@@ -29,6 +29,11 @@ class MaterialCalculation:
         grip_cut_position: Position to cut grip material from start (if synthetic)
         grip_violations: List of straight section numbers shorter than min_grip
         tail_violation: Whether last straight is shorter than min_tail
+        extra_tail_material: Extra material to add at the end (tail extension)
+        has_tail_extension: Whether tail extension material was added
+        tail_cut_position: Position to cut tail material from end (if extended)
+        effective_start_allowance: Allowance at start (0 if grip extended, unless opted in)
+        effective_end_allowance: Allowance at end (0 if tail extended, unless opted in)
     """
 
     extra_material: float
@@ -39,6 +44,11 @@ class MaterialCalculation:
     grip_cut_position: float | None
     grip_violations: list[int] = field(default_factory=list)
     tail_violation: bool = False
+    extra_tail_material: float = 0.0
+    has_tail_extension: bool = False
+    tail_cut_position: float | None = None
+    effective_start_allowance: float = 0.0
+    effective_end_allowance: float = 0.0
 
 
 def calculate_material_requirements(
@@ -48,7 +58,10 @@ def calculate_material_requirements(
     die_offset: float,
     starts_with_arc: bool,
     ends_with_arc: bool,
-    extra_allowance: float = 0.0,
+    start_allowance: float = 0.0,
+    end_allowance: float = 0.0,
+    add_allowance_with_grip_extension: bool = False,
+    add_allowance_with_tail_extension: bool = False,
 ) -> MaterialCalculation:
     """Calculate grip and tail material requirements.
 
@@ -62,7 +75,12 @@ def calculate_material_requirements(
         die_offset: Die offset value (distance from die center to bend point)
         starts_with_arc: Whether path starts with an arc (needs synthetic grip)
         ends_with_arc: Whether path ends with an arc (needs synthetic tail)
-        extra_allowance: Extra material added to each end for alignment tolerance
+        start_allowance: Extra material added at start (grip end) for alignment
+        end_allowance: Extra material added at end (tail end) for spring back
+        add_allowance_with_grip_extension: If True, add allowance even when grip
+            is extended (default: skip allowance since there's already extra material)
+        add_allowance_with_tail_extension: If True, add allowance even when tail
+            is extended (default: skip allowance since there's already extra material)
 
     Returns:
         MaterialCalculation with all grip/tail values and violation flags
@@ -87,6 +105,7 @@ def calculate_material_requirements(
 
     # Handle single-arc paths (no straights) - use synthetic grip/tail only
     if not straights:
+        # No straights means no extensions needed, allowances apply normally
         return MaterialCalculation(
             extra_material=synthetic_grip_material,
             synthetic_grip_material=synthetic_grip_material,
@@ -96,6 +115,11 @@ def calculate_material_requirements(
             grip_cut_position=grip_cut_position,
             grip_violations=[],
             tail_violation=False,
+            extra_tail_material=0.0,
+            has_tail_extension=False,
+            tail_cut_position=None,
+            effective_start_allowance=start_allowance,
+            effective_end_allowance=end_allowance,
         )
 
     first_feed: float = straights[0].length - die_offset
@@ -109,26 +133,58 @@ def calculate_material_requirements(
         extra_material = synthetic_grip_material
 
     # Validate straight sections against min_grip (all except last)
-    # First straight gets extra_allowance added to its effective length
+    # First straight gets start_allowance added to its effective length
     grip_violations: list[int] = []
     if min_grip > 0 and len(straights) > 1:
         sections_to_check = straights[:-1]  # All except the last one
         for straight in sections_to_check:
             effective_length = straight.length
-            # First straight benefits from extra allowance at start
+            # First straight benefits from start allowance
             if straight.number == 1:
-                effective_length += extra_allowance
+                effective_length += start_allowance
             if effective_length < min_grip:
                 grip_violations.append(straight.number)
 
     # Validate last straight section against min_tail
-    # Last straight gets extra_allowance added to its effective length
+    # Last straight gets end_allowance added to its effective length
     tail_violation: bool = False
     if min_tail > 0 and len(straights) > 0:
         last_straight = straights[-1]
-        effective_tail_length = last_straight.length + extra_allowance
+        effective_tail_length = last_straight.length + end_allowance
         if effective_tail_length < min_tail:
             tail_violation = True
+
+    # Calculate extra tail material (when path ends with straight, not arc)
+    # This is material that will be cut off after bending
+    extra_tail_material: float = 0.0
+    has_tail_extension: bool = False
+    tail_cut_position: float | None = None
+    if not ends_with_arc and min_tail > 0 and len(straights) > 0:
+        last_straight = straights[-1]
+        if last_straight.length < min_tail:
+            extra_tail_material = min_tail - last_straight.length
+            has_tail_extension = True
+            # Calculate where to cut: at the end of the original centerline
+            # (before the extra tail material was added).
+            # Note: This sums only straight sections, not arc lengths.
+            # The tail_cut_position is recalculated in bend_sheet_generator.py
+            # to include grip material and allowances for the final bend sheet.
+            total_centerline = sum(s.length for s in straights)
+            tail_cut_position = total_centerline
+
+    # Calculate effective allowances based on extensions
+    # By default, skip allowance when extension material is added
+    # (since there's already extra material to cut off)
+    effective_start_allowance: float = start_allowance
+    effective_end_allowance: float = end_allowance
+
+    # If grip was extended, skip start allowance unless opted in
+    if extra_material > 0 and not add_allowance_with_grip_extension:
+        effective_start_allowance = 0.0
+
+    # If tail was extended (not synthetic), skip end allowance unless opted in
+    if extra_tail_material > 0 and not add_allowance_with_tail_extension:
+        effective_end_allowance = 0.0
 
     return MaterialCalculation(
         extra_material=extra_material,
@@ -139,4 +195,9 @@ def calculate_material_requirements(
         grip_cut_position=grip_cut_position,
         grip_violations=grip_violations,
         tail_violation=tail_violation,
+        extra_tail_material=extra_tail_material,
+        has_tail_extension=has_tail_extension,
+        tail_cut_position=tail_cut_position,
+        effective_start_allowance=effective_start_allowance,
+        effective_end_allowance=effective_end_allowance,
     )

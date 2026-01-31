@@ -73,7 +73,7 @@ class BendSheetDisplay:
             f"Bends: {bend_count}\n"
         )
 
-        # Add grip warning if violations exist
+        # Add grip warning if violations exist (informational - extra material added)
         if sheet_data.grip_violations:
             violation_count = len(sheet_data.grip_violations)
             section_word = "section" if violation_count == 1 else "sections"
@@ -84,22 +84,25 @@ class BendSheetDisplay:
                 sheet_data.min_grip, sheet_data.precision, sheet_data.units
             )
             message += (
-                f"\n⚠️ WARNING: {violation_count} {section_word} shorter than "
-                f"min grip ({sections_list})\n"
+                f"\nℹ️ NOTE: {violation_count} {section_word} shorter than "
+                f"min grip ({sections_list}) - extra material added\n"
                 f"Min grip: {min_grip_str}\n"
             )
 
-        # Add tail warning if violation exists
+        # Add tail warning if violation exists (informational - extra material added)
         if sheet_data.tail_violation:
             last_straight_num = len(sheet_data.straights)
             min_tail_str = format_length(
                 sheet_data.min_tail, sheet_data.precision, sheet_data.units
             )
             message += (
-                f"\n⚠️ WARNING: Straight {last_straight_num} shorter than "
-                f"min tail\n"
+                f"\nℹ️ NOTE: Straight {last_straight_num} shorter than "
+                f"min tail - extra material added\n"
                 f"Min tail: {min_tail_str}\n"
             )
+
+        # Note: Spring back warning is shown earlier in the flow (in entry.py)
+        # before we get here, so user has already acknowledged it
 
         message += "\nOpen in browser for printing?"
 

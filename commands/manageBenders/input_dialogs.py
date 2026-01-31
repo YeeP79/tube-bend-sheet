@@ -19,6 +19,7 @@ class BenderInput:
 
     name: str
     min_grip: float  # In internal units (cm)
+    notes: str = ""
 
 
 @dataclass(slots=True)
@@ -30,6 +31,7 @@ class DieInput:
     clr: float  # In internal units (cm)
     offset: float  # In internal units (cm)
     min_tail: float  # In internal units (cm)
+    notes: str = ""
 
 
 def _get_float_input(

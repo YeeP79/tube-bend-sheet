@@ -27,9 +27,15 @@ class BendSheetParams:
     die_offset: float  # In display units
     min_grip: float  # In display units
     min_tail: float  # In display units
-    extra_allowance: float  # In display units - extra material at each end
+    start_allowance: float  # In display units - extra material at start (grip end)
+    end_allowance: float  # In display units - extra material at end (tail end)
     precision: int
     travel_reversed: bool
+    bender_notes: str = ""  # Notes from bender profile
+    die_notes: str = ""  # Notes from die profile
+    # Options for allowance behavior when grip/tail is extended
+    add_allowance_with_grip_extension: bool = False
+    add_allowance_with_tail_extension: bool = False
 
 
 class InputParser:
@@ -166,6 +172,8 @@ class InputParser:
         die_name = ""
         bender_id = ""
         die_id = ""
+        bender_notes = ""
+        die_notes = ""
 
         if (
             bender_selection
@@ -176,6 +184,7 @@ class InputParser:
             if bender:
                 bender_name = bender.name
                 bender_id = bender.id
+                bender_notes = bender.notes
 
                 if die_selection and die_selection != DieFilter.MANUAL_ENTRY_DIE:
                     # Remove CLR match indicator if present
@@ -184,6 +193,7 @@ class InputParser:
                         if die.name == clean_die_name:
                             die_name = die.name
                             die_id = die.id
+                            die_notes = die.notes
                             break
 
         # Index 0 = natural direction, Index 1 = reversed
@@ -198,7 +208,16 @@ class InputParser:
             die_offset=self.get_value_input('die_offset'),
             min_grip=self.get_value_input('min_grip'),
             min_tail=self.get_value_input('min_tail'),
-            extra_allowance=self.get_value_input('extra_allowance'),
+            start_allowance=self.get_value_input('start_allowance'),
+            end_allowance=self.get_value_input('end_allowance'),
             precision=self.parse_precision(),
             travel_reversed=travel_reversed,
+            bender_notes=bender_notes,
+            die_notes=die_notes,
+            add_allowance_with_grip_extension=self.get_bool_value(
+                'add_allowance_with_grip'
+            ),
+            add_allowance_with_tail_extension=self.get_bool_value(
+                'add_allowance_with_tail'
+            ),
         )

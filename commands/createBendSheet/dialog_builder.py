@@ -227,17 +227,60 @@ class BendSheetDialogBuilder:
             adsk.core.ValueInput.createByReal(0),
         )
 
-        # Extra material (fudge factor)
-        extra_input = self._inputs.addValueInput(
-            'extra_allowance',
-            f'Extra Allowance ({self._units.unit_symbol})',
+        # Start Allowance - extra material at grip end
+        start_allowance_input = self._inputs.addValueInput(
+            'start_allowance',
+            f'Start Allowance ({self._units.unit_symbol})',
             self._units.unit_name,
             adsk.core.ValueInput.createByReal(0),
         )
-        extra_input.tooltip = (
-            "Additional material to add to each end of the tube to account "
-            "for alignment mistakes. This amount is added to both the start "
-            "and end of the tube, increasing the total cut length."
+        start_allowance_input.tooltip = (
+            "Additional material at the START of the tube (grip end). "
+            "This is extra material beyond what's needed for grip extension."
+        )
+
+        # End Allowance - extra material at tail end
+        end_allowance_input = self._inputs.addValueInput(
+            'end_allowance',
+            f'End Allowance ({self._units.unit_symbol})',
+            self._units.unit_name,
+            adsk.core.ValueInput.createByReal(0),
+        )
+        end_allowance_input.tooltip = (
+            "Additional material at the END of the tube (tail end). "
+            "Recommended when tail extension is added to account for spring back."
+        )
+
+        # Checkbox: Add allowance even when grip is extended
+        grip_allowance_checkbox = self._inputs.addBoolValueInput(
+            'add_allowance_with_grip',
+            'Add allowance with grip extension',
+            True,  # checkbox style
+            '',  # no resource folder
+            False,  # default unchecked
+        )
+        # Fusion API stubs don't expose the 'tooltip' attribute for BoolValueCommandInput,
+        # but it exists at runtime. Suppress pyright error for this known limitation.
+        grip_allowance_checkbox.tooltip = (  # type: ignore[attr-defined]
+            "When grip extension is added (first straight shorter than min grip), "
+            "the START allowance is normally skipped (since there's already extra "
+            "material to cut off). Check this to add the Start Allowance anyway."
+        )
+
+        # Checkbox: Add allowance even when tail is extended
+        tail_allowance_checkbox = self._inputs.addBoolValueInput(
+            'add_allowance_with_tail',
+            'Add allowance with tail extension',
+            True,  # checkbox style
+            '',  # no resource folder
+            False,  # default unchecked
+        )
+        # Fusion API stubs don't expose the 'tooltip' attribute for BoolValueCommandInput,
+        # but it exists at runtime. Suppress pyright error for this known limitation.
+        tail_allowance_checkbox.tooltip = (  # type: ignore[attr-defined]
+            "When tail extension is added (last straight shorter than min tail), "
+            "the END allowance is normally skipped (since there's already extra "
+            "material to cut off). Check this to add the End Allowance anyway."
         )
 
     def build_direction_selector(

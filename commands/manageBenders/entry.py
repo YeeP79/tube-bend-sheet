@@ -16,7 +16,18 @@ from ... import config
 from ...storage import ProfileManager
 from ...models import UnitConfig
 from .html_bridge import HTMLBridge
-from .input_dialogs import get_bender_input, get_die_input, confirm_delete
+from .input_dialogs import BenderInput, DieInput, confirm_delete
+from .dialog_contexts import EditBenderContext, EditDieContext
+from .dialog_launcher import (
+    launch_bender_dialog,
+    launch_die_dialog,
+    register_dialog_commands,
+    unregister_dialog_commands,
+)
+from .dialog_relaunch import (
+    start as start_relaunch,
+    stop as stop_relaunch,
+)
 
 app: adsk.core.Application = adsk.core.Application.get()
 ui: adsk.core.UserInterface = app.userInterface
@@ -44,7 +55,6 @@ _profile_manager: ProfileManager | None = None
 _html_bridge: HTMLBridge | None = None
 _units: UnitConfig | None = None
 
-
 def start() -> None:
     """Initialize and register the command."""
     global _profile_manager
@@ -52,6 +62,12 @@ def start() -> None:
     # Initialize profile manager
     addin_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     _profile_manager = ProfileManager(addin_path)
+
+    # Register hidden dialog commands for bender/die editing
+    register_dialog_commands()
+
+    # Register relaunch event for dialog reopening
+    start_relaunch(CMD_ID)
 
     # Create command definition
     cmd_def = ui.commandDefinitions.itemById(CMD_ID)
@@ -85,6 +101,12 @@ def start() -> None:
 def stop() -> None:
     """Clean up the command."""
     global _profile_manager, _html_bridge, _units, local_handlers
+
+    # Unregister relaunch event first
+    stop_relaunch()
+
+    # Unregister hidden dialog commands
+    unregister_dialog_commands()
 
     workspace = ui.workspaces.itemById(WORKSPACE_ID)
     if workspace:
@@ -200,20 +222,29 @@ def command_incoming_from_html(args: adsk.core.HTMLEventArgs) -> None:
 
 
 def _handle_add_bender() -> None:
-    """Handle adding a new bender via input dialogs."""
-    if not _profile_manager or not _html_bridge or not _units:
+    """Handle adding a new bender via form dialog."""
+    if not _profile_manager or not _units:
         return
 
-    bender_input = get_bender_input(ui, _units)
-    if bender_input is None:
-        return
+    context = EditBenderContext(
+        bender_id=None,
+        current_name="New Bender",
+        current_min_grip=config.DEFAULT_MIN_GRIP_CM,
+        current_notes="",
+    )
 
-    bender = _profile_manager.add_bender(bender_input.name, bender_input.min_grip, "")
-    _html_bridge.send_bender_added(bender)
+    def on_complete(result: BenderInput | None) -> None:
+        if result is None or not _profile_manager:
+            return
+        new_bender = _profile_manager.add_bender(result.name, result.min_grip, result.notes)
+        if _html_bridge:
+            _html_bridge.send_bender_added(new_bender)
+
+    launch_bender_dialog(context, _units, on_complete)
 
 
 def _handle_edit_bender(bender_id: str) -> None:
-    """Handle editing an existing bender."""
+    """Handle editing an existing bender via form dialog."""
     if not _profile_manager or not _html_bridge or not _units:
         return
 
@@ -221,19 +252,25 @@ def _handle_edit_bender(bender_id: str) -> None:
     if not bender:
         return
 
-    bender_input = get_bender_input(
-        ui, _units, current_name=bender.name, current_min_grip=bender.min_grip
-    )
-    if bender_input is None:
-        return
-
-    _profile_manager.update_bender(
-        bender_id, bender_input.name, bender_input.min_grip, bender.notes
+    context = EditBenderContext(
+        bender_id=bender_id,
+        current_name=bender.name,
+        current_min_grip=bender.min_grip,
+        current_notes=bender.notes,
     )
 
-    updated_bender = _profile_manager.get_bender_by_id(bender_id)
-    if updated_bender:
-        _html_bridge.send_bender_update(updated_bender)
+    def on_complete(result: BenderInput | None) -> None:
+        if result is None or not _profile_manager:
+            return
+        success = _profile_manager.update_bender(
+            bender_id, result.name, result.min_grip, result.notes
+        )
+        if success and _html_bridge:
+            updated_bender = _profile_manager.get_bender_by_id(bender_id)
+            if updated_bender:
+                _html_bridge.send_bender_update(updated_bender)
+
+    launch_bender_dialog(context, _units, on_complete)
 
 
 def _handle_delete_bender(bender_id: str) -> None:
@@ -251,7 +288,7 @@ def _handle_delete_bender(bender_id: str) -> None:
 
 
 def _handle_add_die(bender_id: str) -> None:
-    """Handle adding a new die to a bender."""
+    """Handle adding a new die to a bender via form dialog."""
     if not _profile_manager or not _html_bridge or not _units:
         return
 
@@ -259,22 +296,39 @@ def _handle_add_die(bender_id: str) -> None:
     if not bender:
         return
 
-    die_input = get_die_input(ui, _units)
-    if die_input is None:
-        return
-
-    _profile_manager.add_die_to_bender(
-        bender_id, die_input.name, die_input.tube_od, die_input.clr,
-        die_input.offset, die_input.min_tail, ""
+    context = EditDieContext(
+        bender_id=bender_id,
+        die_id=None,
+        current_name="New Die",
+        current_tube_od=config.DEFAULT_TUBE_OD_CM,
+        current_clr=config.DEFAULT_CLR_CM,
+        current_offset=config.DEFAULT_DIE_OFFSET_CM,
+        current_min_tail=config.DEFAULT_MIN_TAIL_CM,
+        current_notes="",
     )
 
-    updated_bender = _profile_manager.get_bender_by_id(bender_id)
-    if updated_bender:
-        _html_bridge.send_bender_update(updated_bender)
+    def on_complete(result: DieInput | None) -> None:
+        if result is None or not _profile_manager:
+            return
+        new_die = _profile_manager.add_die_to_bender(
+            bender_id,
+            result.name,
+            result.tube_od,
+            result.clr,
+            result.offset,
+            result.min_tail,
+            result.notes,
+        )
+        if new_die and _html_bridge:
+            updated_bender = _profile_manager.get_bender_by_id(bender_id)
+            if updated_bender:
+                _html_bridge.send_bender_update(updated_bender)
+
+    launch_die_dialog(context, _units, on_complete)
 
 
 def _handle_edit_die(bender_id: str, die_id: str) -> None:
-    """Handle editing an existing die."""
+    """Handle editing an existing die via form dialog."""
     if not _profile_manager or not _html_bridge or not _units:
         return
 
@@ -286,32 +340,36 @@ def _handle_edit_die(bender_id: str, die_id: str) -> None:
     if not die:
         return
 
-    die_input = get_die_input(
-        ui,
-        _units,
+    context = EditDieContext(
+        bender_id=bender_id,
+        die_id=die_id,
         current_name=die.name,
         current_tube_od=die.tube_od,
         current_clr=die.clr,
         current_offset=die.offset,
         current_min_tail=die.min_tail,
-    )
-    if die_input is None:
-        return
-
-    _profile_manager.update_die(
-        bender_id,
-        die_id,
-        die_input.name,
-        die_input.tube_od,
-        die_input.clr,
-        die_input.offset,
-        die_input.min_tail,
-        die.notes,
+        current_notes=die.notes,
     )
 
-    updated_bender = _profile_manager.get_bender_by_id(bender_id)
-    if updated_bender:
-        _html_bridge.send_bender_update(updated_bender)
+    def on_complete(result: DieInput | None) -> None:
+        if result is None or not _profile_manager:
+            return
+        success = _profile_manager.update_die(
+            bender_id,
+            die_id,
+            result.name,
+            result.tube_od,
+            result.clr,
+            result.offset,
+            result.min_tail,
+            result.notes,
+        )
+        if success and _html_bridge:
+            updated_bender = _profile_manager.get_bender_by_id(bender_id)
+            if updated_bender:
+                _html_bridge.send_bender_update(updated_bender)
+
+    launch_die_dialog(context, _units, on_complete)
 
 
 def _handle_delete_die(bender_id: str, die_id: str) -> None:

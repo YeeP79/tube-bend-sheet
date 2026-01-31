@@ -23,6 +23,7 @@ from .input_parser import InputParser
 from .selection_validator import SelectionValidator
 from .bend_sheet_generator import BendSheetGenerator
 from .bend_sheet_display import BendSheetDisplay
+from ...lib.custom_events import CustomEventService
 
 app: adsk.core.Application = adsk.core.Application.get()
 ui: adsk.core.UserInterface = app.userInterface
@@ -47,14 +48,45 @@ local_handlers: list[futil.FusionHandler] = []
 # Module-level profile manager (initialized in start)
 _profile_manager: ProfileManager | None = None
 
+# Custom event service for dialog relaunch
+_event_service: CustomEventService | None = None
+_RELAUNCH_EVENT = f"{config.COMPANY_NAME}_{config.ADDIN_NAME}_relaunchCreateBendSheet"
+
+# Store entities for selection restoration on relaunch
+_relaunch_entities: list[adsk.fusion.SketchEntity] = []
+
+
+def _relaunch_command() -> None:
+    """Callback to relaunch this command after dialog closes."""
+    global _relaunch_entities
+
+    # Restore selection from stored entities
+    if _relaunch_entities:
+        try:
+            for entity in _relaunch_entities:
+                if entity and entity.isValid:  # type: ignore[attr-defined]
+                    ui.activeSelections.add(entity)  # type: ignore[attr-defined]
+        except:
+            futil.handle_error('_relaunch_command: restore selection')
+        finally:
+            _relaunch_entities = []
+
+    cmd_def = ui.commandDefinitions.itemById(CMD_ID)
+    if cmd_def:
+        cmd_def.execute()  # type: ignore[attr-defined]
+
 
 def start() -> None:
     """Initialize and register the command."""
-    global _profile_manager
+    global _profile_manager, _event_service
 
     # Initialize profile manager
     addin_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     _profile_manager = ProfileManager(addin_path)
+
+    # Initialize custom event service for dialog relaunch
+    _event_service = CustomEventService()
+    _event_service.register(_RELAUNCH_EVENT, callback=_relaunch_command)
 
     # Create command definition
     cmd_def = ui.commandDefinitions.itemById(CMD_ID)
@@ -87,7 +119,12 @@ def start() -> None:
 
 def stop() -> None:
     """Clean up the command."""
-    global _profile_manager, local_handlers
+    global _profile_manager, _event_service, local_handlers
+
+    # Stop custom event service
+    if _event_service:
+        _event_service.stop()
+        _event_service = None
 
     workspace = ui.workspaces.itemById(WORKSPACE_ID)
     if workspace:
@@ -319,6 +356,35 @@ def command_execute(args: adsk.core.CommandEventArgs) -> None:
     if result.data is None:
         ui.messageBox('Internal error: No bend sheet data generated', 'Error')
         return
+
+    # Check for spring back warning BEFORE showing result
+    # This gives user a chance to go back and adjust settings
+    if result.data.spring_back_warning:
+        last_bend_num = len(result.data.bends)
+        warning_result = ui.messageBox(
+            f"⚠️ ACTION NEEDED: Extra tail material was added, but no "
+            f"End Allowance is set. Bend #{last_bend_num} may not have "
+            f"enough material due to spring back.\n\n"
+            f"Click 'Yes' to continue anyway and view the bend sheet.\n"
+            f"Click 'No' to go back and add End Allowance.",
+            "Spring Back Warning",
+            adsk.core.MessageBoxButtonTypes.YesNoButtonType,
+            adsk.core.MessageBoxIconTypes.WarningIconType,
+        )
+        if warning_result == adsk.core.DialogResults.DialogNo:
+            # User wants to go back - request dialog relaunch after this command closes
+            # Store entities from selection_result (ui.activeSelections is already cleared)
+            global _relaunch_entities
+            _relaunch_entities = []
+            for line in selection_result.lines:
+                _relaunch_entities.append(line)
+            for arc in selection_result.arcs:
+                _relaunch_entities.append(arc)
+
+            # The custom event fires asynchronously, reopening the dialog
+            if _event_service:
+                _event_service.fire(_RELAUNCH_EVENT)
+            return
 
     # Display result
     display = BendSheetDisplay(ui)

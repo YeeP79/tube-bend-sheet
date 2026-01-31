@@ -53,6 +53,11 @@ def _generate_html_head() -> str:
         hr { border: none; border-top: 1px solid #999; margin: 0.2in 0; }
         .specs-table { width: auto; min-width: 3in; }
         .specs-table td:first-child { font-weight: bold; background-color: #f8f8f8; }
+        .notes-section { margin-top: 0.3in; }
+        .notes-box { border: 1px solid #333; padding: 10px; margin: 10px 0; min-height: 0.8in; }
+        .notes-box h4 { margin: 0 0 5px 0; font-size: 11pt; color: #333; }
+        .notes-box p { margin: 0; font-size: 10pt; white-space: pre-wrap; }
+        .user-notes { min-height: 1.5in; background: repeating-linear-gradient(#fff, #fff 23px, #e0e0e0 24px); }
         @media print { body { padding: 0; } }
     </style>
 </head>
@@ -104,6 +109,15 @@ def _generate_warnings_section(data: BendSheetData) -> str:
         last_straight_num = len(data.straights)
         html += f'<div class="warning">⚠️ Tail Warning: Straight {last_straight_num} shorter than min tail '
         html += f'({format_length(data.min_tail, precision, units)})</div>\n'
+
+    if data.spring_back_warning:
+        last_bend_num = len(data.bends)
+        html += (
+            f'<div class="warning">⚠️ Spring Back Warning: '
+            f'Tail extension applied without end allowance. '
+            f'Bend #{last_bend_num} may not have enough material due to spring back. '
+            f'Consider adding End Allowance.</div>\n'
+        )
 
     return html
 
@@ -235,20 +249,26 @@ def _generate_procedure(data: BendSheetData) -> str:
     html = '<div class="procedure">\n<p><b>Procedure:</b></p>\n<ol>\n'
     html += f"<li>Cut tube to {format_length(data.total_cut_length, precision, units)}</li>\n"
 
-    # Calculate total material to cut from start (grip + allowance)
-    start_cut = data.extra_material + data.extra_allowance
-    # Calculate total material to cut from end (synthetic tail + allowance)
-    end_cut = data.extra_allowance
+    # Calculate total material to cut from start (grip + effective start allowance)
+    start_cut = data.extra_material + data.effective_start_allowance
+
+    # Calculate total material to cut from end
+    # This includes: synthetic tail OR tail extension, plus effective end allowance
+    end_cut = data.effective_end_allowance
     if data.has_synthetic_tail and data.tail_cut_position is not None:
+        # Synthetic tail: material added because path ends with arc
         end_cut += data.total_cut_length - data.tail_cut_position
+    elif data.has_tail_extension:
+        # Tail extension: material added because last straight < min_tail
+        end_cut += data.extra_tail_material
 
     if start_cut > 0:
         # Explain what's included in the start cut
         parts = []
         if data.extra_material > 0:
             parts.append(f"{format_length(data.extra_material, precision, units)} grip")
-        if data.extra_allowance > 0:
-            parts.append(f"{format_length(data.extra_allowance, precision, units)} allowance")
+        if data.effective_start_allowance > 0:
+            parts.append(f"{format_length(data.effective_start_allowance, precision, units)} allowance")
         detail = " + ".join(parts) if len(parts) > 1 else ""
         if detail:
             html += f"<li>Note: First {format_length(start_cut, precision, units)} is extra material "
@@ -271,9 +291,11 @@ def _generate_procedure(data: BendSheetData) -> str:
         parts = []
         if data.has_synthetic_tail and data.tail_cut_position is not None:
             tail_material = data.total_cut_length - data.tail_cut_position
-            parts.append(f"{format_length(tail_material, precision, units)} tail")
-        if data.extra_allowance > 0:
-            parts.append(f"{format_length(data.extra_allowance, precision, units)} allowance")
+            parts.append(f"{format_length(tail_material, precision, units)} synthetic tail")
+        elif data.has_tail_extension:
+            parts.append(f"{format_length(data.extra_tail_material, precision, units)} tail extension")
+        if data.effective_end_allowance > 0:
+            parts.append(f"{format_length(data.effective_end_allowance, precision, units)} allowance")
         detail = " + ".join(parts) if len(parts) > 1 else ""
         if detail and len(parts) > 1:
             html += f"<li>Cut off {format_length(end_cut, precision, units)} from end of tube ({detail})</li>\n"
@@ -303,8 +325,10 @@ def _generate_specifications(data: BendSheetData) -> str:
     html += f"<tr><td>Die Offset</td><td>{format_length(data.die_offset, precision, units) if data.die_offset > 0 else 'None'}</td></tr>\n"
     html += f"<tr><td>Min Grip</td><td>{format_length(data.min_grip, precision, units)}</td></tr>\n"
     html += f"<tr><td>Min Tail</td><td>{format_length(data.min_tail, precision, units)}</td></tr>\n"
-    if data.extra_allowance > 0:
-        html += f"<tr><td>Extra Allowance</td><td>{format_length(data.extra_allowance, precision, units)} per end</td></tr>\n"
+    if data.start_allowance > 0:
+        html += f"<tr><td>Start Allowance</td><td>{format_length(data.start_allowance, precision, units)}</td></tr>\n"
+    if data.end_allowance > 0:
+        html += f"<tr><td>End Allowance</td><td>{format_length(data.end_allowance, precision, units)}</td></tr>\n"
     html += f"<tr><td>Direction</td><td>{_escape_html(data.travel_direction)}</td></tr>\n"
     html += f"<tr><td>Precision</td><td>{get_precision_label(precision, units)}</td></tr>\n"
     html += f"<tr><td>Total Centerline</td><td>{format_length(data.total_centerline, precision, units)}</td></tr>\n"
@@ -312,12 +336,41 @@ def _generate_specifications(data: BendSheetData) -> str:
 
     if data.extra_material > 0:
         html += f"<tr><td>Extra Grip Material</td><td>{format_length(data.extra_material, precision, units)}</td></tr>\n"
+    if data.extra_tail_material > 0:
+        html += f"<tr><td>Extra Tail Material</td><td>{format_length(data.extra_tail_material, precision, units)}</td></tr>\n"
     if data.starts_with_arc:
         html += "<tr><td>Starts With</td><td>Bend</td></tr>\n"
     if data.ends_with_arc:
         html += "<tr><td>Ends With</td><td>Bend</td></tr>\n"
 
     html += "</table>\n"
+    return html
+
+
+def _generate_notes_section(data: BendSheetData) -> str:
+    """Generate notes boxes for bender, die, and user notes."""
+    html = '<div class="notes-section">\n'
+
+    # Bender notes (only if present)
+    if data.bender_notes:
+        html += '<div class="notes-box">\n'
+        html += f'<h4>Bender Notes ({_escape_html(data.bender_name)})</h4>\n'
+        html += f'<p>{_escape_html(data.bender_notes)}</p>\n'
+        html += '</div>\n'
+
+    # Die notes (only if present)
+    if data.die_notes:
+        html += '<div class="notes-box">\n'
+        html += f'<h4>Die Notes ({_escape_html(data.die_name)})</h4>\n'
+        html += f'<p>{_escape_html(data.die_notes)}</p>\n'
+        html += '</div>\n'
+
+    # User notes (always present - blank lined space for handwritten notes)
+    html += '<div class="notes-box user-notes">\n'
+    html += '<h4>Notes</h4>\n'
+    html += '</div>\n'
+
+    html += '</div>\n'
     return html
 
 
@@ -345,6 +398,7 @@ def generate_html_bend_sheet(data: BendSheetData) -> str:
         _generate_bender_setup(data),
         _generate_procedure(data),
         _generate_specifications(data),
+        _generate_notes_section(data),
         _generate_footer(),
     ]
     return "".join(parts)
