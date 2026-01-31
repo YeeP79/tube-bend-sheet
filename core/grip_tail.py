@@ -48,6 +48,7 @@ def calculate_material_requirements(
     die_offset: float,
     starts_with_arc: bool,
     ends_with_arc: bool,
+    extra_allowance: float = 0.0,
 ) -> MaterialCalculation:
     """Calculate grip and tail material requirements.
 
@@ -61,6 +62,7 @@ def calculate_material_requirements(
         die_offset: Die offset value (distance from die center to bend point)
         starts_with_arc: Whether path starts with an arc (needs synthetic grip)
         ends_with_arc: Whether path ends with an arc (needs synthetic tail)
+        extra_allowance: Extra material added to each end for alignment tolerance
 
     Returns:
         MaterialCalculation with all grip/tail values and violation flags
@@ -83,16 +85,15 @@ def calculate_material_requirements(
         synthetic_tail_material = min_tail
         has_synthetic_tail = True
 
-    # Calculate extra material needed for grip when first straight is short
-    # Guard against empty straights (should be validated before calling, but be defensive)
+    # Handle single-arc paths (no straights) - use synthetic grip/tail only
     if not straights:
         return MaterialCalculation(
-            extra_material=0.0,
-            synthetic_grip_material=0.0,
-            synthetic_tail_material=0.0,
-            has_synthetic_grip=False,
-            has_synthetic_tail=False,
-            grip_cut_position=None,
+            extra_material=synthetic_grip_material,
+            synthetic_grip_material=synthetic_grip_material,
+            synthetic_tail_material=synthetic_tail_material,
+            has_synthetic_grip=has_synthetic_grip,
+            has_synthetic_tail=has_synthetic_tail,
+            grip_cut_position=grip_cut_position,
             grip_violations=[],
             tail_violation=False,
         )
@@ -108,18 +109,25 @@ def calculate_material_requirements(
         extra_material = synthetic_grip_material
 
     # Validate straight sections against min_grip (all except last)
+    # First straight gets extra_allowance added to its effective length
     grip_violations: list[int] = []
     if min_grip > 0 and len(straights) > 1:
         sections_to_check = straights[:-1]  # All except the last one
         for straight in sections_to_check:
-            if straight.length < min_grip:
+            effective_length = straight.length
+            # First straight benefits from extra allowance at start
+            if straight.number == 1:
+                effective_length += extra_allowance
+            if effective_length < min_grip:
                 grip_violations.append(straight.number)
 
     # Validate last straight section against min_tail
+    # Last straight gets extra_allowance added to its effective length
     tail_violation: bool = False
     if min_tail > 0 and len(straights) > 0:
         last_straight = straights[-1]
-        if last_straight.length < min_tail:
+        effective_tail_length = last_straight.length + extra_allowance
+        if effective_tail_length < min_tail:
             tail_violation = True
 
     return MaterialCalculation(

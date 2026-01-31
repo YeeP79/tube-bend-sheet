@@ -59,7 +59,7 @@ class SelectionValidator:
     - PathDirectionNormalizer: Determines and normalizes travel direction
     """
 
-    MIN_SELECTION_COUNT: int = 3
+    MIN_SELECTION_COUNT: int = 1
 
     def __init__(self, units: UnitConfig) -> None:
         """Initialize the validator.

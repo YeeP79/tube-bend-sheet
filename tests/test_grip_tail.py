@@ -392,3 +392,98 @@ class TestCalculateMaterialRequirements:
         assert result.has_synthetic_tail is False
         assert result.grip_violations == []
         assert result.tail_violation is False
+
+
+class TestExtraAllowanceAffectsViolations:
+    """Test that extra_allowance is factored into grip/tail violation checks."""
+
+    def test_allowance_prevents_grip_violation_on_first_straight(self) -> None:
+        """First straight + allowance >= min_grip means no violation."""
+        straights = [
+            StraightSection(1, 3.25, (0, 0, 0), (3.25, 0, 0), (3.25, 0, 0)),
+            StraightSection(2, 4.0, (3.25, 0, 0), (7.25, 0, 0), (4.0, 0, 0)),
+        ]
+        # 3.25 < 3.75 normally, but 3.25 + 0.5 = 3.75 >= 3.75
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=3.75,
+            min_tail=0.0,
+            die_offset=0.0,
+            starts_with_arc=False,
+            ends_with_arc=False,
+            extra_allowance=0.5,
+        )
+        assert 1 not in result.grip_violations
+
+    def test_allowance_prevents_tail_violation(self) -> None:
+        """Last straight + allowance >= min_tail means no violation."""
+        straights = [
+            StraightSection(1, 4.0, (0, 0, 0), (4.0, 0, 0), (4.0, 0, 0)),
+            StraightSection(2, 3.0, (4.0, 0, 0), (7.0, 0, 0), (3.0, 0, 0)),
+        ]
+        # 3.0 < 3.5 normally, but 3.0 + 0.5 = 3.5 >= 3.5
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=0.0,
+            min_tail=3.5,
+            die_offset=0.0,
+            starts_with_arc=False,
+            ends_with_arc=False,
+            extra_allowance=0.5,
+        )
+        assert result.tail_violation is False
+
+    def test_allowance_still_shows_violation_if_not_enough(self) -> None:
+        """Even with allowance, violation shown if still not enough."""
+        straights = [
+            StraightSection(1, 3.0, (0, 0, 0), (3.0, 0, 0), (3.0, 0, 0)),
+            StraightSection(2, 4.0, (3.0, 0, 0), (7.0, 0, 0), (4.0, 0, 0)),
+        ]
+        # 3.0 + 0.5 = 3.5 < 4.0 min_grip
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=4.0,
+            min_tail=0.0,
+            die_offset=0.0,
+            starts_with_arc=False,
+            ends_with_arc=False,
+            extra_allowance=0.5,
+        )
+        assert 1 in result.grip_violations
+
+    def test_allowance_only_affects_first_and_last_straights(self) -> None:
+        """Middle straights don't get allowance benefit."""
+        straights = [
+            StraightSection(1, 4.0, (0, 0, 0), (4.0, 0, 0), (4.0, 0, 0)),
+            StraightSection(2, 3.0, (4.0, 0, 0), (7.0, 0, 0), (3.0, 0, 0)),
+            StraightSection(3, 4.0, (7.0, 0, 0), (11.0, 0, 0), (4.0, 0, 0)),
+        ]
+        # Middle straight (2) is 3.0 < 3.5 min_grip, no allowance help
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=3.5,
+            min_tail=0.0,
+            die_offset=0.0,
+            starts_with_arc=False,
+            ends_with_arc=False,
+            extra_allowance=0.5,
+        )
+        assert 2 in result.grip_violations
+
+    def test_zero_allowance_no_change_in_behavior(self) -> None:
+        """Zero allowance gives same result as before."""
+        straights = [
+            StraightSection(1, 3.25, (0, 0, 0), (3.25, 0, 0), (3.25, 0, 0)),
+            StraightSection(2, 4.0, (3.25, 0, 0), (7.25, 0, 0), (4.0, 0, 0)),
+        ]
+        result = calculate_material_requirements(
+            straights=straights,
+            min_grip=3.75,
+            min_tail=0.0,
+            die_offset=0.0,
+            starts_with_arc=False,
+            ends_with_arc=False,
+            extra_allowance=0.0,
+        )
+        # 3.25 < 3.75, should have violation
+        assert 1 in result.grip_violations

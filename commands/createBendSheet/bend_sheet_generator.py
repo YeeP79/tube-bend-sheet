@@ -104,14 +104,16 @@ class BendSheetGenerator:
 
         # Calculate straights and bends
         straights, bends = calculate_straights_and_bends(
-            lines, arcs, start_point, clr, self._units
+            lines, arcs, start_point, clr, self._units,
+            starts_with_arc=starts_with_arc,
+            ends_with_arc=ends_with_arc,
         )
 
-        # Validate we have straight sections
-        if not straights:
+        # Validate we have geometry to work with (straights or bends)
+        if not straights and not bends:
             return GenerationResult(
                 success=False,
-                error="No straight sections found in path. Cannot generate bend sheet.",
+                error="No geometry found in path. Cannot generate bend sheet.",
             )
 
         # Direction-aware validation for middle straights
@@ -138,6 +140,7 @@ class BendSheetGenerator:
             die_offset=params.die_offset,
             starts_with_arc=starts_with_arc,
             ends_with_arc=ends_with_arc,
+            extra_allowance=params.extra_allowance,
         )
 
         # Build segments and mark positions

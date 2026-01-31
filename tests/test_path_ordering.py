@@ -230,20 +230,30 @@ class TestBuildOrderedPath:
         assert len(ordered) == 2
 
     # Defensive: Edge cases
-    def test_single_element_fails(self) -> None:
-        """Single element is not a valid path."""
+    def test_single_arc_succeeds(self) -> None:
+        """Single arc is a valid path (arc-only bend sheet)."""
+        arc = MockPathElement('arc', ((0, 0, 0), (1, 0, 0)))
+        ordered, error = build_ordered_path([arc])
+
+        assert ordered is not None
+        assert error == ""
+        assert len(ordered) == 1
+        assert ordered[0].element_type == 'arc'
+
+    def test_single_line_fails(self) -> None:
+        """Single line is not a valid path (need at least one bend)."""
         line = MockPathElement('line', ((0, 0, 0), (1, 0, 0)))
         ordered, error = build_ordered_path([line])
 
         assert ordered is None
-        assert "at least 2 elements" in error
+        assert "must be an arc" in error
 
     def test_empty_list_fails(self) -> None:
         """Empty element list is not a valid path."""
         ordered, error = build_ordered_path([])
 
         assert ordered is None
-        assert "at least 2 elements" in error
+        assert "at least 1 element" in error
 
     def test_disconnected_element_fails(self) -> None:
         """Disconnected element causes failure."""

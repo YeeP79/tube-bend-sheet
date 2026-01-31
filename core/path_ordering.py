@@ -40,8 +40,15 @@ def build_ordered_path(
         If successful, ordered_elements is the list and error_message is empty.
         If failed, ordered_elements is None and error_message describes the problem.
     """
-    if len(elements) < 2:
-        return None, "Path must have at least 2 elements (1 straight + 1 bend minimum)."
+    if len(elements) == 0:
+        return None, "Path must have at least 1 element."
+
+    # Single element path (arc-only) - valid for simple single-bend tubes
+    if len(elements) == 1:
+        if elements[0].element_type == 'arc':
+            return elements.copy(), ""
+        else:
+            return None, "Single element path must be an arc (bend), not a line."
 
     # Build adjacency list
     neighbors: dict[int, list[int]] = {i: [] for i in range(len(elements))}

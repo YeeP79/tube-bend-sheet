@@ -136,11 +136,18 @@ def _generate_cut_instructions(data: BendSheetData) -> str:
 
 
 def _generate_bend_table(data: BendSheetData) -> str:
-    """Generate the main bend data table."""
+    """Generate the main bend data table showing pure path geometry.
+
+    This table shows the actual tube path geometry starting at 0, not the
+    positions on the cut tube (which includes extra grip/tail material).
+    """
     precision = data.precision
     units = data.units
 
-    html = "<hr>\n<h3>Bend Data</h3>\n<table>\n"
+    # Extra material offset to subtract for pure geometry display
+    extra_offset = data.extra_material
+
+    html = "<hr>\n<h3>Path Geometry</h3>\n<table>\n"
     html += "<tr><th class='center'>Step</th><th>Segment</th><th class='right'>Length</th>"
     html += "<th class='right'>Starts At</th><th class='right'>Ends At</th>"
     html += "<th class='right'>Bend Angle</th><th class='right'>Rotation Before</th></tr>\n"
@@ -179,10 +186,14 @@ def _generate_bend_table(data: BendSheetData) -> str:
         if is_grip_warning or is_tail_warning:
             length_str += ' <span class="grip-warning-icon">⚠️</span>'
 
+        # Show pure geometry (subtract extra material offset)
+        geometry_starts_at = seg.starts_at - extra_offset
+        geometry_ends_at = seg.ends_at - extra_offset
+
         html += f"<tr{row_class}><td class='center'>{i + 1}</td><td>{seg.name}</td>"
         html += f"<td class='right'>{length_str}</td>"
-        html += f"<td class='right'>{format_length(seg.starts_at, precision, units)}</td>"
-        html += f"<td class='right'>{format_length(seg.ends_at, precision, units)}</td>"
+        html += f"<td class='right'>{format_length(geometry_starts_at, precision, units)}</td>"
+        html += f"<td class='right'>{format_length(geometry_ends_at, precision, units)}</td>"
         html += f"<td class='right'>{angle_str}</td><td class='right'>{rot_str}</td></tr>\n"
 
     html += "</table>\n<hr>\n"
@@ -224,9 +235,27 @@ def _generate_procedure(data: BendSheetData) -> str:
     html = '<div class="procedure">\n<p><b>Procedure:</b></p>\n<ol>\n'
     html += f"<li>Cut tube to {format_length(data.total_cut_length, precision, units)}</li>\n"
 
-    if data.extra_material > 0:
-        html += f"<li>Note: First {format_length(data.extra_material, precision, units)} "
-        html += "is extra grip material (cut off after bending)</li>\n"
+    # Calculate total material to cut from start (grip + allowance)
+    start_cut = data.extra_material + data.extra_allowance
+    # Calculate total material to cut from end (synthetic tail + allowance)
+    end_cut = data.extra_allowance
+    if data.has_synthetic_tail and data.tail_cut_position is not None:
+        end_cut += data.total_cut_length - data.tail_cut_position
+
+    if start_cut > 0:
+        # Explain what's included in the start cut
+        parts = []
+        if data.extra_material > 0:
+            parts.append(f"{format_length(data.extra_material, precision, units)} grip")
+        if data.extra_allowance > 0:
+            parts.append(f"{format_length(data.extra_allowance, precision, units)} allowance")
+        detail = " + ".join(parts) if len(parts) > 1 else ""
+        if detail:
+            html += f"<li>Note: First {format_length(start_cut, precision, units)} is extra material "
+            html += f"({detail} — cut off after bending)</li>\n"
+        else:
+            html += f"<li>Note: First {format_length(start_cut, precision, units)} "
+            html += "is extra material (cut off after bending)</li>\n"
 
     for mp in data.mark_positions:
         if mp.rotation is not None:
@@ -234,16 +263,22 @@ def _generate_procedure(data: BendSheetData) -> str:
         html += f"<li>Mark at {format_length(mp.mark_position, precision, units)} from start "
         html += f"— align mark to die end, bend {mp.bend_angle:.1f}°</li>\n"
 
-    if data.extra_material > 0:
-        html += f"<li>Cut off {format_length(data.extra_material, precision, units)} from start of tube</li>\n"
+    if start_cut > 0:
+        html += f"<li>Cut off {format_length(start_cut, precision, units)} from start of tube</li>\n"
 
-    if data.has_synthetic_tail and data.tail_cut_position is not None:
-        tail_cut_from_end = data.total_cut_length - data.tail_cut_position
-        html += f"<li>Cut off {format_length(tail_cut_from_end, precision, units)} from end of tube</li>\n"
-
-    if data.extra_allowance > 0:
-        html += f"<li>Note: {format_length(data.extra_allowance, precision, units)} extra allowance "
-        html += "added to each end for alignment tolerance</li>\n"
+    if end_cut > 0:
+        # Explain what's included in the end cut
+        parts = []
+        if data.has_synthetic_tail and data.tail_cut_position is not None:
+            tail_material = data.total_cut_length - data.tail_cut_position
+            parts.append(f"{format_length(tail_material, precision, units)} tail")
+        if data.extra_allowance > 0:
+            parts.append(f"{format_length(data.extra_allowance, precision, units)} allowance")
+        detail = " + ".join(parts) if len(parts) > 1 else ""
+        if detail and len(parts) > 1:
+            html += f"<li>Cut off {format_length(end_cut, precision, units)} from end of tube ({detail})</li>\n"
+        else:
+            html += f"<li>Cut off {format_length(end_cut, precision, units)} from end of tube</li>\n"
 
     html += "</ol>\n</div>\n<hr>\n"
     return html

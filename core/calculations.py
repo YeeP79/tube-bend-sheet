@@ -96,18 +96,22 @@ def calculate_straights_and_bends(
     arcs: list['adsk.fusion.SketchArc'],
     path_start: Point3D,
     clr: float,
-    units: UnitConfig
+    units: UnitConfig,
+    starts_with_arc: bool = False,
+    ends_with_arc: bool = False,
 ) -> tuple[list[StraightSection], list[BendData]]:
     """
     Calculate all straight sections and bend data from geometry.
-    
+
     Args:
         lines: Ordered list of sketch lines
         arcs: Ordered list of sketch arcs
         path_start: The starting point of the path (in cm)
         clr: Center line radius in display units
         units: Unit configuration for conversion
-        
+        starts_with_arc: Whether the path starts with an arc (no incoming vector)
+        ends_with_arc: Whether the path ends with an arc (no outgoing vector)
+
     Returns:
         Tuple of (straights, bends) with lengths in display units
     """
@@ -117,40 +121,70 @@ def calculate_straights_and_bends(
         start, end = get_sketch_entity_endpoints(line)
         line_points.append((start, end))
 
-    # Validate we have geometry to process
+    # Handle single-arc path (no lines) - valid for arc-only bend sheets
     if not line_points:
-        raise ValueError("No lines provided - cannot calculate bend data")
+        straights: list[StraightSection] = []
+        bends: list[BendData] = []
+
+        for i, arc in enumerate(arcs):
+            # Calculate bend angle from arc geometry (sweep angle)
+            center = arc.centerSketchPoint.worldGeometry
+            arc_start = arc.startSketchPoint.worldGeometry
+            arc_end = arc.endSketchPoint.worldGeometry
+
+            v_start: Vector3D = (
+                arc_start.x - center.x,
+                arc_start.y - center.y,
+                arc_start.z - center.z,
+            )
+            v_end: Vector3D = (
+                arc_end.x - center.x,
+                arc_end.y - center.y,
+                arc_end.z - center.z,
+            )
+
+            bend_angle = angle_between_vectors(v_start, v_end)
+            arc_length = clr * math.radians(bend_angle)
+
+            bends.append(BendData(
+                number=i + 1,
+                angle=bend_angle,
+                rotation=None,  # No rotation for single arc
+                arc_length=arc_length
+            ))
+
+        return straights, bends
 
     # Orient first line so start is at path_start
     corrected: list[tuple[Point3D, Point3D]] = []
     first_start, first_end = line_points[0]
-    
+
     if distance_between_points(first_end, path_start) < distance_between_points(first_start, path_start):
         corrected.append((first_end, first_start))
     else:
         corrected.append((first_start, first_end))
-    
+
     # Orient remaining lines based on connectivity
     for i in range(1, len(line_points)):
         prev_end = corrected[i - 1][1]
         curr_start, curr_end = line_points[i]
-        
+
         if distance_between_points(curr_end, prev_end) < distance_between_points(curr_start, prev_end):
             corrected.append((curr_end, curr_start))
         else:
             corrected.append((curr_start, curr_end))
-    
+
     # Build straight sections
     straights: list[StraightSection] = []
     vectors: list[Vector3D] = []
-    
+
     for i, (start, end) in enumerate(corrected):
         vector: Vector3D = (end[0] - start[0], end[1] - start[1], end[2] - start[2])
         vectors.append(vector)
-        
+
         length_cm = magnitude(vector)
         length_display = length_cm * units.cm_to_unit
-        
+
         straights.append(StraightSection(
             number=i + 1,
             length=length_display,
@@ -167,14 +201,6 @@ def calculate_straights_and_bends(
             vector=vector
         ))
     
-    # Calculate bend plane normals
-    # Each bend requires two adjacent vectors (incoming and outgoing)
-    if len(vectors) < len(arcs) + 1:
-        raise ValueError(
-            f"Insufficient vectors ({len(vectors)}) for {len(arcs)} arcs - "
-            "expected at least arcs + 1 vectors"
-        )
-
     # Validate all vectors are non-zero (zero-length lines cannot define bend planes)
     for i, v in enumerate(vectors):
         if magnitude(v) < ZERO_MAGNITUDE_TOLERANCE:
@@ -182,28 +208,87 @@ def calculate_straights_and_bends(
                 f"Line {i + 1} has zero length - cannot calculate bend plane"
             )
 
-    normals: list[Vector3D] = []
+    # Calculate expected vector count based on path structure
+    # Standard: line-arc-line needs vectors = arcs + 1
+    # Arc-first: arc-line-arc needs vectors = arcs (missing incoming vector for first arc)
+    # Arc-last: line-arc-line-arc needs vectors = arcs (missing outgoing vector for last arc)
+    # Both: arc-line-arc needs vectors = arcs - 1
+    expected_vectors = len(arcs) + 1
+    if starts_with_arc:
+        expected_vectors -= 1
+    if ends_with_arc:
+        expected_vectors -= 1
+
+    if len(vectors) < expected_vectors:
+        raise ValueError(
+            f"Insufficient vectors ({len(vectors)}) for {len(arcs)} arcs - "
+            f"expected at least {expected_vectors} vectors"
+        )
+
+    # Calculate bend plane normals where possible
+    # For arcs at path ends without adjacent vectors, we skip normal calculation
+    normals: list[Vector3D | None] = []
     for i in range(len(arcs)):
-        n = cross_product(vectors[i], vectors[i + 1])
-        normals.append(n)
-    
+        # Determine vector indices for this arc
+        # When starts_with_arc, arc indices are shifted: arc 0 uses vectors[0] as outgoing
+        incoming_idx = i if not starts_with_arc else i - 1
+        outgoing_idx = incoming_idx + 1
+
+        # Check if we have both vectors for normal calculation
+        if incoming_idx >= 0 and outgoing_idx < len(vectors):
+            n = cross_product(vectors[incoming_idx], vectors[outgoing_idx])
+            normals.append(n)
+        else:
+            normals.append(None)
+
     # Calculate bend angles and rotations
     bends: list[BendData] = []
     for i in range(len(arcs)):
-        bend_angle = angle_between_vectors(vectors[i], vectors[i + 1])
+        arc = arcs[i]
+        # Determine vector indices for this arc
+        incoming_idx = i if not starts_with_arc else i - 1
+        outgoing_idx = incoming_idx + 1
+
+        # Calculate bend angle
+        if incoming_idx >= 0 and outgoing_idx < len(vectors):
+            # Standard case: compute from adjacent vectors
+            bend_angle = angle_between_vectors(vectors[incoming_idx], vectors[outgoing_idx])
+        else:
+            # Arc at path end: use arc's geometric sweep angle
+            # Get center and endpoints to calculate sweep angle
+            center = arc.centerSketchPoint.worldGeometry
+            arc_start = arc.startSketchPoint.worldGeometry
+            arc_end = arc.endSketchPoint.worldGeometry
+
+            # Vectors from center to start and end
+            v_start: Vector3D = (
+                arc_start.x - center.x,
+                arc_start.y - center.y,
+                arc_start.z - center.z,
+            )
+            v_end: Vector3D = (
+                arc_end.x - center.x,
+                arc_end.y - center.y,
+                arc_end.z - center.z,
+            )
+
+            # Sweep angle is the angle between these radius vectors
+            bend_angle = angle_between_vectors(v_start, v_end)
+
         arc_length = clr * math.radians(bend_angle)
-        
+
+        # Calculate rotation from previous bend (if applicable)
         rotation: float | None = None
-        if i > 0:
+        if i > 0 and normals[i - 1] is not None and normals[i] is not None:
             rotation = calculate_rotation(normals[i - 1], normals[i])
-        
+
         bends.append(BendData(
             number=i + 1,
             angle=bend_angle,
             rotation=rotation,
             arc_length=arc_length
         ))
-    
+
     return straights, bends
 
 

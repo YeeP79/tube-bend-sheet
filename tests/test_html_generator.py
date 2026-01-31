@@ -380,3 +380,103 @@ class TestGenerateHtmlBendSheet:
         html = generate_html_bend_sheet(data)
         assert "mm" in html  # Unit symbol appears
         assert "Metric Tube" in html
+
+
+class TestProcedureCutInstructions:
+    """Test procedure generation for cut instructions with allowance."""
+
+    def test_extra_allowance_only_shows_end_cut(
+        self, minimal_bend_sheet_data: BendSheetData
+    ) -> None:
+        """Extra allowance without grip material shows end cut instruction."""
+        minimal_bend_sheet_data.extra_material = 0.0
+        minimal_bend_sheet_data.extra_allowance = 0.5
+        minimal_bend_sheet_data.total_cut_length = 22.14  # Added 1" (0.5 each end)
+
+        html = generate_html_bend_sheet(minimal_bend_sheet_data)
+
+        # Should have start cut for allowance
+        assert "from start of tube" in html
+        # Should have end cut for allowance
+        assert "from end of tube" in html
+
+    def test_grip_plus_allowance_combined_in_start_cut(
+        self, minimal_bend_sheet_data: BendSheetData
+    ) -> None:
+        """Grip material + allowance are combined in start cut instruction."""
+        minimal_bend_sheet_data.extra_material = 1.5  # Grip
+        minimal_bend_sheet_data.extra_allowance = 0.5  # Allowance
+        minimal_bend_sheet_data.total_cut_length = 23.14
+
+        html = generate_html_bend_sheet(minimal_bend_sheet_data)
+
+        # Should show combined amount and breakdown
+        assert "grip" in html.lower()
+        assert "allowance" in html.lower()
+        # Should show cut from start
+        assert "from start of tube" in html
+        # Should show cut from end (just allowance)
+        assert "from end of tube" in html
+
+    def test_synthetic_tail_plus_allowance_combined_in_end_cut(
+        self, minimal_bend_sheet_data: BendSheetData
+    ) -> None:
+        """Synthetic tail + allowance are combined in end cut instruction."""
+        minimal_bend_sheet_data.extra_material = 0.0
+        minimal_bend_sheet_data.extra_allowance = 0.5
+        minimal_bend_sheet_data.has_synthetic_tail = True
+        minimal_bend_sheet_data.tail_cut_position = 20.0
+        minimal_bend_sheet_data.total_cut_length = 23.0  # 20 + 2.5 tail + 0.5 allowance
+
+        html = generate_html_bend_sheet(minimal_bend_sheet_data)
+
+        # Should show end cut with breakdown
+        assert "from end of tube" in html
+        assert "tail" in html.lower()
+        assert "allowance" in html.lower()
+
+    def test_all_materials_combined_correctly(
+        self, minimal_bend_sheet_data: BendSheetData
+    ) -> None:
+        """All material types (grip, allowance, tail) handled correctly."""
+        minimal_bend_sheet_data.extra_material = 2.0  # Grip
+        minimal_bend_sheet_data.extra_allowance = 0.5  # Allowance per end
+        minimal_bend_sheet_data.has_synthetic_tail = True
+        minimal_bend_sheet_data.tail_cut_position = 22.0
+        minimal_bend_sheet_data.total_cut_length = 26.0
+
+        html = generate_html_bend_sheet(minimal_bend_sheet_data)
+
+        # Start cut should include grip + allowance
+        assert "from start of tube" in html
+        # End cut should include tail + allowance
+        assert "from end of tube" in html
+
+    def test_no_extra_material_no_cut_instructions(
+        self, minimal_bend_sheet_data: BendSheetData
+    ) -> None:
+        """No extra material means no cut instructions in procedure."""
+        minimal_bend_sheet_data.extra_material = 0.0
+        minimal_bend_sheet_data.extra_allowance = 0.0
+        minimal_bend_sheet_data.has_synthetic_tail = False
+
+        html = generate_html_bend_sheet(minimal_bend_sheet_data)
+
+        # Should not have cut instructions
+        assert "from start of tube" not in html
+        assert "from end of tube" not in html
+
+    def test_only_grip_material_no_end_cut(
+        self, minimal_bend_sheet_data: BendSheetData
+    ) -> None:
+        """Only grip material (no allowance) shows only start cut."""
+        minimal_bend_sheet_data.extra_material = 2.0
+        minimal_bend_sheet_data.extra_allowance = 0.0
+        minimal_bend_sheet_data.has_synthetic_tail = False
+
+        html = generate_html_bend_sheet(minimal_bend_sheet_data)
+
+        # Should have start cut
+        assert "from start of tube" in html
+        # Should NOT have end cut
+        assert "from end of tube" not in html
