@@ -7,12 +7,16 @@ following CLAUDE.md guidelines for defensive programming.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import adsk.core
 
 from ...models import UnitConfig
 from ...storage import ProfileManager
 from .die_filter import DieFilter
+
+if TYPE_CHECKING:
+    from ...storage.materials import MaterialManager
 
 
 @dataclass(slots=True)
@@ -36,6 +40,10 @@ class BendSheetParams:
     # Options for allowance behavior when grip/tail is extended
     add_allowance_with_grip_extension: bool = False
     add_allowance_with_tail_extension: bool = False
+    # Compensation fields
+    material_id: str = ""  # Selected material ID (if any)
+    material_name: str = ""  # Selected material name (for display)
+    apply_compensation: bool = False  # Whether to apply bender compensation
 
 
 class InputParser:
@@ -153,12 +161,19 @@ class InputParser:
             return self._units.default_precision
         return self.PRECISION_MAP.get(prec_text, self._units.default_precision)
 
-    def parse(self, profile_manager: ProfileManager | None) -> BendSheetParams:
+    def parse(
+        self,
+        profile_manager: ProfileManager | None,
+        material_manager: "MaterialManager | None" = None,
+        material_id_map: dict[str, str] | None = None,
+    ) -> BendSheetParams:
         """
         Parse all inputs into a typed BendSheetParams object.
 
         Args:
             profile_manager: Optional profile manager for bender/die lookup
+            material_manager: Optional material manager for material lookup
+            material_id_map: Optional mapping of display names to material IDs
 
         Returns:
             BendSheetParams with all values extracted
@@ -199,6 +214,28 @@ class InputParser:
         # Index 0 = natural direction, Index 1 = reversed
         travel_reversed = self.get_radio_button_index('travel_direction') == 1
 
+        # Parse material and compensation settings
+        material_id = ""
+        material_name = ""
+        apply_compensation = False
+
+        material_selection = self.get_dropdown_value('material')
+        if material_selection and material_selection != "(None)" and material_manager:
+            material = None
+            # Use ID map if available (handles batch suffix in display name)
+            if material_id_map and material_selection in material_id_map:
+                mat_id = material_id_map[material_selection]
+                material = material_manager.get_material_by_id(mat_id)
+            else:
+                # Fall back to name lookup (may fail for materials with batch)
+                material = material_manager.get_material_by_name(material_selection)
+
+            if material:
+                material_id = material.id
+                material_name = material.name
+                # Only apply compensation if checkbox is checked and we have a material
+                apply_compensation = self.get_bool_value('apply_compensation')
+
         return BendSheetParams(
             bender_name=bender_name,
             die_name=die_name,
@@ -220,4 +257,7 @@ class InputParser:
             add_allowance_with_tail_extension=self.get_bool_value(
                 'add_allowance_with_tail'
             ),
+            material_id=material_id,
+            material_name=material_name,
+            apply_compensation=apply_compensation,
         )

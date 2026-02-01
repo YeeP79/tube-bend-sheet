@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Manage Materials</title>
+    <style>
+        :root {
+            --bg-primary: #3c3c3c;
+            --bg-secondary: #4a4a4a;
+            --bg-hover: #555555;
+            --bg-selected: #0078d4;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent-blue: #0696d7;
+            --border-color: #5a5a5a;
+            --danger-red: #d32f2f;
+            --success-green: #4caf50;
+            --warning-amber: #ff9800;
+        }
+
+        * {
+            font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 12px;
+            padding: 8px;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Info banner */
+        .info-banner {
+            background: rgba(6, 150, 215, 0.15);
+            border: 1px solid var(--accent-blue);
+            border-radius: 3px;
+            padding: 8px 10px;
+            margin-bottom: 10px;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .info-banner strong {
+            color: var(--accent-blue);
+        }
+
+        /* Tree container */
+        .tree {
+            user-select: none;
+        }
+
+        /* OD Group header */
+        .od-group {
+            margin-bottom: 8px;
+        }
+
+        .od-header {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            cursor: pointer;
+            margin-bottom: 2px;
+        }
+
+        .od-header:hover {
+            background: var(--bg-hover);
+        }
+
+        .expand-icon {
+            width: 16px;
+            font-size: 10px;
+            color: var(--text-secondary);
+            transition: transform 0.15s;
+            flex-shrink: 0;
+        }
+
+        .od-header.expanded .expand-icon {
+            transform: rotate(90deg);
+        }
+
+        .od-label {
+            flex: 1;
+            font-weight: 500;
+            color: var(--text-secondary);
+            font-size: 11px;
+        }
+
+        /* Material items */
+        .material-list {
+            margin-left: 16px;
+            display: none;
+        }
+
+        .od-group.expanded .material-list {
+            display: block;
+        }
+
+        .material-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 8px;
+            margin-bottom: 2px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            transition: background 0.1s;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .material-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .material-name {
+            flex: 1;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .material-info {
+            color: var(--text-secondary);
+            font-size: 11px;
+            margin-right: 4px;
+        }
+
+        /* Action buttons */
+        .actions {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .action-btn {
+            padding: 2px 6px;
+            font-size: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.1s;
+            white-space: nowrap;
+        }
+
+        .action-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-blue);
+        }
+
+        .action-btn.add {
+            color: var(--success-green);
+            border-color: var(--success-green);
+        }
+
+        .action-btn.add:hover {
+            background: rgba(76, 175, 80, 0.2);
+        }
+
+        .action-btn.delete {
+            color: var(--danger-red);
+            border-color: var(--danger-red);
+        }
+
+        .action-btn.delete:hover {
+            background: rgba(211, 47, 47, 0.2);
+        }
+
+        .action-btn.compensation {
+            color: var(--warning-amber);
+            border-color: var(--warning-amber);
+        }
+
+        .action-btn.compensation:hover {
+            background: rgba(255, 152, 0, 0.2);
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 32px 16px;
+            font-size: 12px;
+        }
+
+        /* Add material section */
+        .add-material-container {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .add-material-btn {
+            width: 100%;
+            padding: 8px 16px;
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: background 0.1s;
+        }
+
+        .add-material-btn:hover {
+            background: #0580b8;
+        }
+
+        .refresh-btn {
+            width: 100%;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="info-banner">
+        <strong>Materials</strong> define tube material properties.
+        Materials with matching <strong>Tube OD</strong> can be paired with compatible dies
+        for bender compensation data.
+    </div>
+
+    <div class="tree" id="materialTree">
+        <div class="empty-state">Loading...</div>
+    </div>
+
+    <div class="add-material-container">
+        <button class="add-material-btn" onclick="addMaterial()">+ Add Material</button>
+        <button class="action-btn refresh-btn" onclick="refreshMaterials()">Refresh</button>
+    </div>
+
+    <script>
+        // State
+        let materials = [];
+        let expandedODs = new Set();
+
+        // Fusion communication handler - receives messages from Python
+        window.fusionJavaScriptHandler = {
+            handle: function(action, data) {
+                try {
+                    switch (action) {
+                        case 'loadMaterials':
+                            materials = JSON.parse(data);
+                            // Auto-expand all OD groups
+                            const ods = [...new Set(materials.map(m => m.tube_od))];
+                            ods.forEach(od => expandedODs.add(od));
+                            renderTree();
+                            return 'OK';
+
+                        case 'updateMaterial':
+                            const updated = JSON.parse(data);
+                            updateMaterialInList(updated);
+                            renderTree();
+                            return 'OK';
+
+                        case 'addMaterialToList':
+                            const newMaterial = JSON.parse(data);
+                            materials.push(newMaterial);
+                            expandedODs.add(newMaterial.tube_od);
+                            renderTree();
+                            return 'OK';
+
+                        case 'removeMaterial':
+                            const materialId = data;
+                            materials = materials.filter(m => m.id !== materialId);
+                            renderTree();
+                            return 'OK';
+
+                        default:
+                            return 'UNKNOWN_ACTION: ' + action;
+                    }
+                } catch (e) {
+                    console.error('Handler error:', e);
+                    return 'ERROR: ' + e.message;
+                }
+            }
+        };
+
+        // Send message to Python
+        function sendToFusion(action, data) {
+            if (typeof adsk !== 'undefined' && adsk.fusionSendData) {
+                return adsk.fusionSendData(action, JSON.stringify(data));
+            } else {
+                console.log('Would send to Fusion:', action, data);
+                return Promise.resolve('OK');
+            }
+        }
+
+        // Group materials by tube OD
+        function groupByOD(materials) {
+            const groups = {};
+            for (const mat of materials) {
+                const od = mat.tube_od;
+                if (!groups[od]) {
+                    groups[od] = {
+                        tube_od: od,
+                        tube_od_display: mat.tube_od_display,
+                        materials: []
+                    };
+                }
+                groups[od].materials.push(mat);
+            }
+            // Sort by OD value
+            return Object.values(groups).sort((a, b) => a.tube_od - b.tube_od);
+        }
+
+        // Render tree from state
+        function renderTree() {
+            const container = document.getElementById('materialTree');
+
+            if (materials.length === 0) {
+                container.innerHTML = '<div class="empty-state">No materials configured.<br><br>Click "+ Add Material" to create one.</div>';
+                return;
+            }
+
+            const groups = groupByOD(materials);
+            let html = '';
+
+            for (const group of groups) {
+                const isExpanded = expandedODs.has(group.tube_od);
+                const expandClass = isExpanded ? 'expanded' : '';
+                const count = group.materials.length;
+
+                html += `
+                    <div class="od-group ${expandClass}" data-od="${group.tube_od}">
+                        <div class="od-header ${expandClass}" onclick="toggleOD(${group.tube_od})">
+                            <span class="expand-icon">&#9654;</span>
+                            <span class="od-label">Tube OD: ${group.tube_od_display} (${count} material${count !== 1 ? 's' : ''})</span>
+                        </div>
+                        <div class="material-list">
+                            ${renderMaterials(group.materials)}
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function renderMaterials(materials) {
+            return materials.map(mat => {
+                const batchInfo = mat.batch ? ` [${escapeHtml(mat.batch)}]` : '';
+                return `
+                    <div class="material-item" data-id="${escapeAttr(mat.id)}">
+                        <span class="material-name">${escapeHtml(mat.name)}${batchInfo}</span>
+                        <div class="actions">
+                            <button class="action-btn compensation" onclick="manageCompensation('${escapeAttr(mat.id)}')" title="Manage Compensation Data">&#x1F4CA;</button>
+                            <button class="action-btn" onclick="editMaterial('${escapeAttr(mat.id)}')" title="Edit Material">&#x270E;</button>
+                            <button class="action-btn delete" onclick="deleteMaterial('${escapeAttr(mat.id)}')" title="Delete Material">&#x2715;</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Tree interaction
+        function toggleOD(tubeOD) {
+            if (expandedODs.has(tubeOD)) {
+                expandedODs.delete(tubeOD);
+            } else {
+                expandedODs.add(tubeOD);
+            }
+            renderTree();
+        }
+
+        // CRUD actions - delegate to Python
+        function addMaterial() {
+            sendToFusion('addMaterial', {});
+        }
+
+        function refreshMaterials() {
+            sendToFusion('requestMaterials', {});
+        }
+
+        function editMaterial(materialId) {
+            sendToFusion('editMaterial', { material_id: materialId });
+        }
+
+        function deleteMaterial(materialId) {
+            sendToFusion('deleteMaterial', { material_id: materialId });
+        }
+
+        function manageCompensation(materialId) {
+            sendToFusion('manageCompensation', { material_id: materialId });
+        }
+
+        // Helpers
+        function escapeHtml(text) {
+            if (text == null) return '';
+            const div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+
+        function escapeAttr(text) {
+            if (text == null) return '';
+            return String(text).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        function updateMaterialInList(updated) {
+            const idx = materials.findIndex(m => m.id === updated.id);
+            if (idx >= 0) {
+                materials[idx] = updated;
+            } else {
+                materials.push(updated);
+            }
+        }
+
+        // Request initial data when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            sendToFusion('requestMaterials', {});
+
+            // Retry after a short delay if no data received
+            setTimeout(function() {
+                if (materials.length === 0) {
+                    sendToFusion('requestMaterials', {});
+                }
+            }, 200);
+        });
+    </script>
+</body>
+</html>

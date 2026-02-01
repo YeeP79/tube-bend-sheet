@@ -51,6 +51,7 @@ class MarkPosition:
     mark_position: float
     bend_angle: float
     rotation: float | None
+    compensated_angle: float | None = None  # What bender readout should show
 
 
 @dataclass(slots=True)
@@ -99,3 +100,7 @@ class BendSheetData:
     effective_end_allowance: float = 0.0  # Allowance at end (0 if tail extended)
     # Spring back warning
     spring_back_warning: bool = False  # True when tail extended but no end allowance
+    # Compensation fields
+    material_name: str = ""  # Material used for compensation (if any)
+    apply_compensation: bool = False  # Whether compensation was applied
+    compensation_warnings: list[str] = field(default_factory=list)  # Extrapolation warnings

@@ -4,11 +4,13 @@
 # To add a new command, duplicate an existing directory and import it here.
 from .createBendSheet import entry as createBendSheet
 from .manageBenders import entry as manageBenders
+from .manageMaterials import entry as manageMaterials
 
 # Fusion will automatically call the start() and stop() functions.
 commands = [
     createBendSheet,
     manageBenders,
+    manageMaterials,
 ]
 
 

@@ -119,6 +119,13 @@ def _generate_warnings_section(data: BendSheetData) -> str:
             f'Consider adding End Allowance.</div>\n'
         )
 
+    # Compensation warnings (extrapolation beyond recorded data)
+    if data.compensation_warnings:
+        for warning in data.compensation_warnings:
+            html += (
+                f'<div class="warning">⚠️ Compensation Warning: {_escape_html(warning)}</div>\n'
+            )
+
     return html
 
 
@@ -219,6 +226,11 @@ def _generate_bender_setup(data: BendSheetData) -> str:
     precision = data.precision
     units = data.units
 
+    # Check if compensation is being applied (any mark has compensated_angle)
+    has_compensation = data.apply_compensation and any(
+        mp.compensated_angle is not None for mp in data.mark_positions
+    )
+
     html = "<h3>Bender Setup</h3>\n"
     if data.die_offset > 0:
         html += f"<p><b>Die Offset:</b> {format_length(data.die_offset, precision, units)} "
@@ -228,16 +240,30 @@ def _generate_bender_setup(data: BendSheetData) -> str:
 
     html += "<table>\n"
     html += "<tr><th class='center'>Bend</th><th class='right'>Mark Position</th>"
-    html += "<th>Align Mark To</th><th class='right'>Bend Angle</th><th class='right'>Rotation Before</th></tr>\n"
+    html += "<th>Align Mark To</th><th class='right'>Target Angle</th>"
+    if has_compensation:
+        html += "<th class='right'>Bend To*</th>"
+    html += "<th class='right'>Rotation Before</th></tr>\n"
 
     for mp in data.mark_positions:
         rot_str = f"<b>{mp.rotation:.1f}°</b>" if mp.rotation is not None else "—"
         html += f"<tr><td class='center'>BEND {mp.bend_num}</td>"
         html += f"<td class='right'>{format_length(mp.mark_position, precision, units)}</td>"
         html += f"<td>Die end</td><td class='right'>{mp.bend_angle:.1f}°</td>"
+        if has_compensation:
+            if mp.compensated_angle is not None:
+                html += f"<td class='right'><b>{mp.compensated_angle:.1f}°</b></td>"
+            else:
+                html += "<td class='right'>—</td>"
         html += f"<td class='right'>{rot_str}</td></tr>\n"
 
     html += "</table>\n"
+
+    # Add footnote for compensation
+    if has_compensation:
+        html += "<p><small>* <b>Bend To</b> = what your bender readout should show "
+        html += "to achieve the Target Angle (accounts for springback and calibration).</small></p>\n"
+
     return html
 
 
@@ -280,8 +306,12 @@ def _generate_procedure(data: BendSheetData) -> str:
     for mp in data.mark_positions:
         if mp.rotation is not None:
             html += f"<li>Rotate tube <b>{mp.rotation:.1f}°</b></li>\n"
+        # Use compensated angle if available, otherwise use target angle
+        bend_angle_to_show = (
+            mp.compensated_angle if mp.compensated_angle is not None else mp.bend_angle
+        )
         html += f"<li>Mark at {format_length(mp.mark_position, precision, units)} from start "
-        html += f"— align mark to die end, bend {mp.bend_angle:.1f}°</li>\n"
+        html += f"— align mark to die end, bend {bend_angle_to_show:.1f}°</li>\n"
 
     if start_cut > 0:
         html += f"<li>Cut off {format_length(start_cut, precision, units)} from start of tube</li>\n"
@@ -319,6 +349,10 @@ def _generate_specifications(data: BendSheetData) -> str:
         html += f"<tr><td>Bender</td><td>{_escape_html(data.bender_name)}</td></tr>\n"
     if data.die_name:
         html += f"<tr><td>Die</td><td>{_escape_html(data.die_name)}</td></tr>\n"
+    if data.material_name:
+        html += f"<tr><td>Material</td><td>{_escape_html(data.material_name)}</td></tr>\n"
+    if data.apply_compensation:
+        html += "<tr><td>Compensation</td><td>Applied (bender-specific)</td></tr>\n"
     html += f"<tr><td>Units</td><td>{units.unit_name}</td></tr>\n"
     html += f"<tr><td>Tube OD</td><td>{data.tube_od}{units.unit_symbol}</td></tr>\n"
     html += f"<tr><td>CLR</td><td>{format_length(data.clr, precision, units)}</td></tr>\n"

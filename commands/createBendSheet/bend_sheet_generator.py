@@ -18,11 +18,13 @@ from ...core import (
     validate_direction_aware,
     calculate_material_requirements,
 )
+from ...core.compensation import calculate_compensated_angle
 from ...models import UnitConfig, BendSheetData
 
 if TYPE_CHECKING:
     from ...core import PathElement
     from .input_parser import BendSheetParams
+    from ...storage.materials import MaterialManager
 
 
 @dataclass(slots=True)
@@ -46,14 +48,20 @@ class BendSheetGenerator:
     - Constructing complete BendSheetData
     """
 
-    def __init__(self, units: UnitConfig) -> None:
+    def __init__(
+        self,
+        units: UnitConfig,
+        material_manager: "MaterialManager | None" = None,
+    ) -> None:
         """
         Initialize the generator.
 
         Args:
             units: Unit configuration for the design
+            material_manager: Optional material manager for compensation lookup
         """
         self._units = units
+        self._material_manager = material_manager
 
     def generate(
         self,
@@ -158,6 +166,28 @@ class BendSheetGenerator:
             straights, bends, material.extra_material, params.die_offset
         )
 
+        # Apply bender compensation if enabled
+        compensation_warnings: list[str] = []
+        if (
+            params.apply_compensation
+            and params.material_id
+            and params.die_id
+            and self._material_manager
+        ):
+            compensation_data = self._material_manager.get_compensation(
+                params.die_id, params.material_id
+            )
+            if compensation_data and compensation_data.data_points:
+                for mark in mark_positions:
+                    result = calculate_compensated_angle(
+                        mark.bend_angle, compensation_data.data_points
+                    )
+                    mark.compensated_angle = result.compensated_angle
+                    if result.warning:
+                        # Collect unique warnings
+                        if result.warning not in compensation_warnings:
+                            compensation_warnings.append(result.warning)
+
         # Calculate totals
         total_straights: float = sum(s.length for s in straights)
         total_arcs: float = sum(b.arc_length for b in bends)
@@ -229,6 +259,9 @@ class BendSheetGenerator:
             effective_start_allowance=material.effective_start_allowance,
             effective_end_allowance=material.effective_end_allowance,
             spring_back_warning=spring_back_warning,
+            material_name=params.material_name,
+            apply_compensation=params.apply_compensation,
+            compensation_warnings=compensation_warnings,
         )
 
         return GenerationResult(success=True, data=sheet_data)

@@ -6,6 +6,8 @@ following SRP by separating UI building from business logic.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import adsk.core
 
 from ...models import UnitConfig
@@ -14,6 +16,9 @@ from ...storage.attributes import TubeSettings
 from ...core import format_length
 from .dialog_state import DialogState
 from .die_filter import DieFilter
+
+if TYPE_CHECKING:
+    from ...storage.materials import MaterialManager
 
 
 class BendSheetDialogBuilder:
@@ -35,6 +40,7 @@ class BendSheetDialogBuilder:
         inputs: adsk.core.CommandInputs,
         profile_manager: ProfileManager | None,
         units: UnitConfig,
+        material_manager: "MaterialManager | None" = None,
     ) -> None:
         """Initialize the dialog builder.
 
@@ -42,12 +48,15 @@ class BendSheetDialogBuilder:
             inputs: Command inputs container
             profile_manager: Profile manager for bender/die data
             units: Unit configuration for the design
+            material_manager: Material manager for material/compensation data
         """
         self._inputs = inputs
         self._profile_manager = profile_manager
         self._units = units
+        self._material_manager = material_manager
         self._state = DialogState(inputs)
         self._die_filter = DieFilter(profile_manager)
+        self._material_id_map: dict[str, str] = {}  # display_name -> material_id
 
     def build_bender_dropdown(
         self,
@@ -132,6 +141,111 @@ class BendSheetDialogBuilder:
                 items.item(selected_die_idx).isSelected = True
 
         return dropdown
+
+    def build_material_dropdown(
+        self,
+        selected_die_tube_od: float | None = None,
+    ) -> adsk.core.DropDownCommandInput:
+        """Create and populate the material selection dropdown.
+
+        Args:
+            selected_die_tube_od: Tube OD of selected die for filtering materials
+
+        Returns:
+            The created dropdown input
+        """
+        dropdown = self._inputs.addDropDownCommandInput(
+            'material',
+            'Material',
+            adsk.core.DropDownStyles.TextListDropDownStyle,
+        )
+        items = dropdown.listItems
+        items.add("(None)", True)
+
+        # Clear and rebuild material ID map
+        self._material_id_map.clear()
+
+        if self._material_manager and selected_die_tube_od is not None:
+            # Filter materials by matching tube OD
+            matching_materials = self._material_manager.get_materials_by_tube_od(
+                selected_die_tube_od, tolerance=0.01
+            )
+            for material in matching_materials:
+                display_name = material.name
+                if material.batch:
+                    display_name += f" [{material.batch}]"
+                items.add(display_name, False)
+                self._material_id_map[display_name] = material.id
+
+        return dropdown
+
+    def build_compensation_checkbox(self) -> adsk.core.BoolValueCommandInput:
+        """Create the compensation checkbox.
+
+        Returns:
+            The created checkbox input
+        """
+        checkbox = self._inputs.addBoolValueInput(
+            'apply_compensation',
+            'Apply bender compensation',
+            True,  # checkbox style
+            '',  # no resource folder
+            False,  # default unchecked
+        )
+        checkbox.tooltip = (  # type: ignore[attr-defined]
+            "When enabled and a material is selected, Section 2 will show "
+            "adjusted angles based on your recorded bender compensation data. "
+            "Use 'Manage Materials' to record test bend data."
+        )
+        checkbox.isEnabled = False  # type: ignore[attr-defined]  # Disabled until material selected
+        return checkbox
+
+    def update_material_dropdown_for_die(
+        self,
+        die_tube_od: float | None,
+    ) -> None:
+        """Update material dropdown when die selection changes.
+
+        Clears existing materials and populates with materials matching the die's tube OD.
+
+        Args:
+            die_tube_od: Tube OD of selected die, or None if no die selected
+        """
+        material_dropdown = adsk.core.DropDownCommandInput.cast(
+            self._inputs.itemById("material")
+        )
+        compensation_checkbox = adsk.core.BoolValueCommandInput.cast(
+            self._inputs.itemById("apply_compensation")
+        )
+
+        if not material_dropdown:
+            return
+
+        # Clear existing items and material ID map
+        items = material_dropdown.listItems
+        for i in range(items.count - 1, -1, -1):
+            items.item(i).deleteMe()
+        self._material_id_map.clear()
+
+        # Add default option
+        items.add("(None)", True)
+
+        if self._material_manager and die_tube_od is not None:
+            # Add matching materials
+            matching_materials = self._material_manager.get_materials_by_tube_od(
+                die_tube_od, tolerance=0.01
+            )
+            for material in matching_materials:
+                display_name = material.name
+                if material.batch:
+                    display_name += f" [{material.batch}]"
+                items.add(display_name, False)
+                self._material_id_map[display_name] = material.id
+
+        # Disable compensation checkbox when no material selected
+        if compensation_checkbox:
+            compensation_checkbox.value = False  # type: ignore[attr-defined]
+            compensation_checkbox.isEnabled = False  # type: ignore[attr-defined]
 
     def build_precision_dropdown(
         self,
@@ -341,6 +455,19 @@ class BendSheetDialogBuilder:
         # Die dropdown (populated based on bender selection)
         self.build_die_dropdown(selected_bender_idx, detected_clr, saved_settings)
 
+        # Material dropdown (filtered by selected die's tube OD)
+        selected_die_tube_od: float | None = None
+        if selected_bender_idx > 0 and self._profile_manager:
+            bender = self._profile_manager.benders[selected_bender_idx - 1]
+            if saved_settings and saved_settings.die_id:
+                die = bender.get_die_by_id(saved_settings.die_id)
+                if die:
+                    selected_die_tube_od = die.tube_od
+        self.build_material_dropdown(selected_die_tube_od)
+
+        # Compensation checkbox
+        self.build_compensation_checkbox()
+
         # Value inputs
         self.build_value_inputs(detected_clr, saved_settings)
 
@@ -432,3 +559,40 @@ class BendSheetDialogBuilder:
         die = self._die_filter.get_die_by_name(bender_name, die_name)
         if die:
             self._state.apply_die_values(die)
+
+    def update_material_dropdown_for_die_selection(
+        self,
+        bender_name: str,
+        die_name: str,
+    ) -> None:
+        """Update material dropdown when die selection changes.
+
+        Looks up the die by name and updates the material dropdown
+        to show only materials matching the die's tube OD.
+
+        Args:
+            bender_name: Name of selected bender
+            die_name: Name of selected die (may include match indicator)
+        """
+        # If manual entry, clear materials (no tube OD to match against)
+        if (
+            DieFilter.is_manual_entry_bender(bender_name)
+            or DieFilter.is_manual_entry_die(die_name)
+            or not self._profile_manager
+        ):
+            self.update_material_dropdown_for_die(None)
+            return
+
+        die = self._die_filter.get_die_by_name(bender_name, die_name)
+        if die:
+            self.update_material_dropdown_for_die(die.tube_od)
+        else:
+            self.update_material_dropdown_for_die(None)
+
+    def get_material_id_map(self) -> dict[str, str]:
+        """Get the material display name to ID mapping.
+
+        Returns:
+            Dict mapping display names to material IDs
+        """
+        return self._material_id_map
