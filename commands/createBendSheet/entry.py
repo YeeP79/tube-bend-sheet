@@ -158,10 +158,11 @@ def command_created(args: adsk.core.CommandCreatedEventArgs) -> None:
     local_handlers = []
     futil.log(f'{CMD_NAME} Command Created Event')
 
-    # Create fresh managers to pick up any changes made via Manage Benders/Tubes
-    addin_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    _profile_manager = ProfileManager(addin_path)
-    _tube_manager = TubeManager(addin_path)
+    # Reload managers to pick up any changes made via Manage Benders/Tubes
+    if _profile_manager:
+        _profile_manager.reload()
+    if _tube_manager:
+        _tube_manager.reload()
 
     cmd = args.command
 
@@ -302,137 +303,140 @@ def command_input_changed(args: adsk.core.InputChangedEventArgs) -> None:
 
 def command_execute(args: adsk.core.CommandEventArgs) -> None:
     """Execute the command - generate the bend sheet."""
-    futil.log(f'{CMD_NAME} Command Execute Event')
-
-    inputs = args.command.commandInputs
-
-    design = adsk.fusion.Design.cast(app.activeProduct)
-    if not design:
-        ui.messageBox('No active design.', 'Error')
-        return
-
     try:
-        units = UnitConfig.from_design(design)
-    except ValueError as e:
-        ui.messageBox(str(e), 'Unsupported Units')
-        return
+        futil.log(f'{CMD_NAME} Command Execute Event')
 
-    # Validate and analyze selection
-    validator = SelectionValidator(units)
-    selection_result = validator.validate_for_execution(ui.activeSelections)
+        inputs = args.command.commandInputs
 
-    if not selection_result.is_valid:
-        ui.messageBox(selection_result.error_message or 'Invalid selection', 'Error')
-        return
-
-    # Guard: valid result must have start_point and end_point
-    if selection_result.start_point is None or selection_result.end_point is None:
-        ui.messageBox('Invalid path: could not determine start/end points', 'Error')
-        return
-
-    # Parse input values
-    parser = InputParser(inputs, units)
-    tube_id_map = _dialog_builder.get_tube_id_map() if _dialog_builder else None
-    params = parser.parse(_profile_manager, _tube_manager, tube_id_map)
-
-    # Get path info, handling direction reversal
-    ordered_path = selection_result.ordered_path
-    starts_with_arc = selection_result.starts_with_arc
-    ends_with_arc = selection_result.ends_with_arc
-    start_point = selection_result.start_point
-
-    if params.travel_reversed:
-        ordered_path = ordered_path[::-1]
-        start_point = selection_result.end_point
-        starts_with_arc, ends_with_arc = ends_with_arc, starts_with_arc
-        # Full label: "Front to Back" (current to opposite)
-        travel_direction = (
-            f"{selection_result.travel_direction} to "
-            f"{selection_result.opposite_direction}"
-        )
-        opposite_direction = (
-            f"{selection_result.opposite_direction} to "
-            f"{selection_result.travel_direction}"
-        )
-    else:
-        # Full label: "Back to Front" (opposite to current)
-        travel_direction = (
-            f"{selection_result.opposite_direction} to "
-            f"{selection_result.travel_direction}"
-        )
-        opposite_direction = (
-            f"{selection_result.travel_direction} to "
-            f"{selection_result.opposite_direction}"
-        )
-
-    # Generate bend sheet data
-    generator = BendSheetGenerator(units, _tube_manager)
-    result = generator.generate(
-        ordered_path=ordered_path,
-        start_point=start_point,
-        params=params,
-        component_name=selection_result.component_name,
-        travel_direction=travel_direction,
-        opposite_direction=opposite_direction,
-        starts_with_arc=starts_with_arc,
-        ends_with_arc=ends_with_arc,
-    )
-
-    if not result.success:
-        error_msg = result.error
-        if result.suggestion:
-            error_msg += f"\n\nSuggestion: {result.suggestion}"
-        ui.messageBox(error_msg, 'Error')
-        return
-
-    # Save settings to document
-    if selection_result.first_entity:
-        settings = TubeSettings(
-            bender_id=params.bender_id,
-            die_id=params.die_id,
-            tube_od=params.tube_od,
-            precision=params.precision,
-            travel_reversed=params.travel_reversed,
-        )
-        AttributeManager.save_settings(selection_result.first_entity, settings)
-
-    # Guard: successful result must have data
-    if result.data is None:
-        ui.messageBox('Internal error: No bend sheet data generated', 'Error')
-        return
-
-    # Check for spring back warning BEFORE showing result
-    # This gives user a chance to go back and adjust settings
-    if result.data.spring_back_warning:
-        last_bend_num = len(result.data.bends)
-        warning_result = ui.messageBox(
-            f"⚠️ ACTION NEEDED: Extra tail material was added, but no "
-            f"End Allowance is set. Bend #{last_bend_num} may not have "
-            f"enough material due to spring back.\n\n"
-            f"Click 'Yes' to continue anyway and view the bend sheet.\n"
-            f"Click 'No' to go back and add End Allowance.",
-            "Spring Back Warning",
-            adsk.core.MessageBoxButtonTypes.YesNoButtonType,
-            adsk.core.MessageBoxIconTypes.WarningIconType,
-        )
-        if warning_result == adsk.core.DialogResults.DialogNo:
-            # User wants to go back - request dialog relaunch after this command closes
-            # Store entities from selection_result (ui.activeSelections is already cleared)
-            global _relaunch_entities
-            _relaunch_entities = []
-            for line in selection_result.lines:
-                _relaunch_entities.append(line)
-            for arc in selection_result.arcs:
-                _relaunch_entities.append(arc)
-
-            # The custom event fires asynchronously, reopening the dialog
-            if _event_service:
-                _event_service.fire(_RELAUNCH_EVENT)
+        design = adsk.fusion.Design.cast(app.activeProduct)
+        if not design:
+            ui.messageBox('No active design.', 'Error')
             return
 
-    # Display result
-    display = BendSheetDisplay(ui)
-    display.show(result.data)
+        try:
+            units = UnitConfig.from_design(design)
+        except ValueError as e:
+            ui.messageBox(str(e), 'Unsupported Units')
+            return
+
+        # Validate and analyze selection
+        validator = SelectionValidator(units)
+        selection_result = validator.validate_for_execution(ui.activeSelections)
+
+        if not selection_result.is_valid:
+            ui.messageBox(selection_result.error_message or 'Invalid selection', 'Error')
+            return
+
+        # Guard: valid result must have start_point and end_point
+        if selection_result.start_point is None or selection_result.end_point is None:
+            ui.messageBox('Invalid path: could not determine start/end points', 'Error')
+            return
+
+        # Parse input values
+        parser = InputParser(inputs, units)
+        tube_id_map = _dialog_builder.get_tube_id_map() if _dialog_builder else None
+        params = parser.parse(_profile_manager, _tube_manager, tube_id_map)
+
+        # Get path info, handling direction reversal
+        ordered_path = selection_result.ordered_path
+        starts_with_arc = selection_result.starts_with_arc
+        ends_with_arc = selection_result.ends_with_arc
+        start_point = selection_result.start_point
+
+        if params.travel_reversed:
+            ordered_path = ordered_path[::-1]
+            start_point = selection_result.end_point
+            starts_with_arc, ends_with_arc = ends_with_arc, starts_with_arc
+            # Full label: "Front to Back" (current to opposite)
+            travel_direction = (
+                f"{selection_result.travel_direction} to "
+                f"{selection_result.opposite_direction}"
+            )
+            opposite_direction = (
+                f"{selection_result.opposite_direction} to "
+                f"{selection_result.travel_direction}"
+            )
+        else:
+            # Full label: "Back to Front" (opposite to current)
+            travel_direction = (
+                f"{selection_result.opposite_direction} to "
+                f"{selection_result.travel_direction}"
+            )
+            opposite_direction = (
+                f"{selection_result.travel_direction} to "
+                f"{selection_result.opposite_direction}"
+            )
+
+        # Generate bend sheet data
+        generator = BendSheetGenerator(units, _tube_manager)
+        result = generator.generate(
+            ordered_path=ordered_path,
+            start_point=start_point,
+            params=params,
+            component_name=selection_result.component_name,
+            travel_direction=travel_direction,
+            opposite_direction=opposite_direction,
+            starts_with_arc=starts_with_arc,
+            ends_with_arc=ends_with_arc,
+        )
+
+        if not result.success:
+            error_msg = result.error
+            if result.suggestion:
+                error_msg += f"\n\nSuggestion: {result.suggestion}"
+            ui.messageBox(error_msg, 'Error')
+            return
+
+        # Save settings to document
+        if selection_result.first_entity:
+            settings = TubeSettings(
+                bender_id=params.bender_id,
+                die_id=params.die_id,
+                tube_od=params.tube_od,
+                precision=params.precision,
+                travel_reversed=params.travel_reversed,
+            )
+            AttributeManager.save_settings(selection_result.first_entity, settings)
+
+        # Guard: successful result must have data
+        if result.data is None:
+            ui.messageBox('Internal error: No bend sheet data generated', 'Error')
+            return
+
+        # Check for spring back warning BEFORE showing result
+        # This gives user a chance to go back and adjust settings
+        if result.data.warnings.spring_back_warning:
+            last_bend_num = len(result.data.bends)
+            warning_result = ui.messageBox(
+                f"⚠️ ACTION NEEDED: Extra tail material was added, but no "
+                f"End Allowance is set. Bend #{last_bend_num} may not have "
+                f"enough material due to spring back.\n\n"
+                f"Click 'Yes' to continue anyway and view the bend sheet.\n"
+                f"Click 'No' to go back and add End Allowance.",
+                "Spring Back Warning",
+                adsk.core.MessageBoxButtonTypes.YesNoButtonType,
+                adsk.core.MessageBoxIconTypes.WarningIconType,
+            )
+            if warning_result == adsk.core.DialogResults.DialogNo:
+                # User wants to go back - request dialog relaunch after this command closes
+                # Store entities from selection_result (ui.activeSelections is already cleared)
+                global _relaunch_entities
+                _relaunch_entities = []
+                for line in selection_result.lines:
+                    _relaunch_entities.append(line)
+                for arc in selection_result.arcs:
+                    _relaunch_entities.append(arc)
+
+                # The custom event fires asynchronously, reopening the dialog
+                if _event_service:
+                    _event_service.fire(_RELAUNCH_EVENT)
+                return
+
+        # Display result
+        display = BendSheetDisplay(ui)
+        display.show(result.data)
+    except:
+        futil.handle_error('command_execute')
 
 
 def command_destroy(args: adsk.core.CommandEventArgs) -> None:

@@ -7,6 +7,11 @@ from .bend_data import (
     PathSegment,
     MarkPosition,
     BendSheetData,
+    ToolingInfo,
+    GeometrySpecs,
+    PathData,
+    MaterialInfo,
+    SheetWarnings,
 )
 from .compensation import CompensationDataPoint, DieMaterialCompensation
 from .tube import Tube, MATERIAL_TYPES
@@ -23,6 +28,12 @@ __all__ = [
     'PathSegment',
     'MarkPosition',
     'BendSheetData',
+    # BendSheetData sub-groups
+    'ToolingInfo',
+    'GeometrySpecs',
+    'PathData',
+    'MaterialInfo',
+    'SheetWarnings',
     # Compensation models
     'CompensationDataPoint',
     'DieMaterialCompensation',

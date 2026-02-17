@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import json
-import threading
-import uuid
 from pathlib import Path
+from typing import Any
 
 from ..models.tube import Tube, validate_tube_values
 from ..models.compensation import (
@@ -13,6 +12,7 @@ from ..models.compensation import (
     validate_compensation_values,
 )
 from ..lib import fusionAddInUtils as futil
+from .json_store import JsonFileStore
 
 
 class TubeSaveError(IOError):
@@ -27,7 +27,7 @@ class TubeLoadError(IOError):
     pass
 
 
-class TubeManager:
+class TubeManager(JsonFileStore):
     """
     Manages tubes and compensation data stored in JSON.
 
@@ -51,14 +51,11 @@ class TubeManager:
         Args:
             addin_path: Path to the add-in root directory
         """
-        self._addin_path = Path(addin_path)
-        self._resources_path = self._addin_path / 'resources'
-        self._tubes_path = self._resources_path / self.FILENAME
-        self._legacy_path = self._resources_path / self.LEGACY_FILENAME
+        resources_path = Path(addin_path) / 'resources'
+        super().__init__(resources_path, self.FILENAME)
+        self._legacy_path = resources_path / self.LEGACY_FILENAME
         self._tubes: list[Tube] = []
         self._compensation_data: list[DieMaterialCompensation] = []
-        self._loaded = False
-        self._load_lock = threading.Lock()
 
     @property
     def tubes(self) -> list[Tube]:
@@ -67,9 +64,7 @@ class TubeManager:
         Thread-safe lazy loading using a lock to prevent race conditions
         when multiple threads access tubes simultaneously.
         """
-        with self._load_lock:
-            if not self._loaded:
-                self.load()
+        self._ensure_loaded()
         return self._tubes
 
     @property
@@ -78,20 +73,8 @@ class TubeManager:
 
         Thread-safe lazy loading using a lock to prevent race conditions.
         """
-        with self._load_lock:
-            if not self._loaded:
-                self.load()
+        self._ensure_loaded()
         return self._compensation_data
-
-    def reload(self) -> None:
-        """
-        Force reload data from disk.
-
-        Use this when the file may have been modified externally
-        and you need to pick up the latest changes.
-        """
-        self._loaded = False
-        self.load()
 
     def load(self) -> None:
         """
@@ -109,8 +92,8 @@ class TubeManager:
         self._compensation_data = []
 
         # Migration: if tubes.json doesn't exist but materials.json does, read from legacy
-        load_path = self._tubes_path
-        if not self._tubes_path.exists():
+        load_path = self._file_path
+        if not self._file_path.exists():
             if self._legacy_path.exists():
                 load_path = self._legacy_path
                 futil.log(f"TubeManager: Migrating from {self.LEGACY_FILENAME} to {self.FILENAME}")
@@ -182,44 +165,21 @@ class TubeManager:
         """
         Save tubes and compensation data to disk using atomic write pattern.
 
-        Writes to a temporary file first, then atomically renames to target.
-        This prevents data corruption from interrupted writes.
-
         Raises:
             TubeSaveError: If file cannot be written
         """
-        temp_path = self._tubes_path.with_suffix('.tmp')
-
         try:
-            # Ensure resources directory exists
-            self._resources_path.mkdir(parents=True, exist_ok=True)
-
-            data = {
-                'version': self.CURRENT_VERSION,
-                'tubes': [t.to_dict() for t in self._tubes],
-                'compensation_data': [c.to_dict() for c in self._compensation_data],
-            }
-
-            # Write to temp file first
-            with open(temp_path, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2)
-
-            # Atomic rename to target (overwrites existing)
-            temp_path.replace(self._tubes_path)
-
-        except (OSError, TypeError) as e:
-            # Clean up temp file on failure
-            if temp_path.exists():
-                try:
-                    temp_path.unlink()
-                except OSError:
-                    pass  # Best effort cleanup
-
+            super().save()
+        except OSError as e:
             raise TubeSaveError(f"Failed to save tubes: {e}") from e
 
-    def _generate_id(self) -> str:
-        """Generate a unique ID."""
-        return str(uuid.uuid4())[:8]
+    def _get_save_data(self) -> dict[str, Any]:
+        """Return the JSON-serializable dict for tubes and compensation."""
+        return {
+            'version': self.CURRENT_VERSION,
+            'tubes': [t.to_dict() for t in self._tubes],
+            'compensation_data': [c.to_dict() for c in self._compensation_data],
+        }
 
     # -------------------------------------------------------------------------
     # Tube CRUD Operations

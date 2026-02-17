@@ -47,8 +47,8 @@ class CustomEventService:
         # Defensive: unregister if exists from previous session
         try:
             app.unregisterCustomEvent(event_id)  # type: ignore[attr-defined]
-        except:
-            pass
+        except Exception:
+            pass  # Expected if not previously registered
 
         # Create handler
         handler = _CustomHandler(event_id, callback)
@@ -87,8 +87,8 @@ class CustomEventService:
                 reg.custom_event.remove(reg.handler)
             try:
                 app.unregisterCustomEvent(reg.event_id)  # type: ignore[attr-defined]
-            except:
-                pass
+            except Exception:
+                pass  # Best effort cleanup during shutdown
 
         self._events.clear()
 

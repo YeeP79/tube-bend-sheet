@@ -6,7 +6,18 @@ Run with: pytest tests/ -v
 import pytest
 
 from core.html_generator import _escape_html, generate_html_bend_sheet
-from models import BendData, BendSheetData, MarkPosition, PathSegment, StraightSection
+from models import (
+    BendData,
+    BendSheetData,
+    GeometrySpecs,
+    MarkPosition,
+    MaterialInfo,
+    PathData,
+    PathSegment,
+    SheetWarnings,
+    StraightSection,
+    ToolingInfo,
+)
 from models.units import UnitConfig
 
 
@@ -42,85 +53,73 @@ def metric_units() -> UnitConfig:
 @pytest.fixture
 def minimal_bend_sheet_data(imperial_units: UnitConfig) -> BendSheetData:
     """Create minimal BendSheetData for testing."""
-    return BendSheetData(
-        component_name="Test Component",
-        tube_od=1.5,
-        clr=4.5,
-        die_offset=0.5,
-        precision=16,
-        min_grip=6.0,
-        travel_direction="Left to Right",
-        starts_with_arc=False,
-        ends_with_arc=False,
-        clr_mismatch=False,
-        clr_values=[4.5],
-        continuity_errors=[],
-        straights=[
-            StraightSection(1, 10.0, (0, 0, 0), (10, 0, 0), (10, 0, 0)),
-            StraightSection(2, 8.0, (10, 0, 0), (18, 0, 0), (8, 0, 0)),
-        ],
-        bends=[
-            BendData(number=1, angle=45.0, rotation=None, arc_length=3.14),
-        ],
-        segments=[
-            PathSegment('straight', 'Straight 1', 10.0, 0.0, 10.0, None, None),
-            PathSegment('bend', 'BEND 1', 3.14, 10.0, 13.14, 45.0, None),
-            PathSegment('straight', 'Straight 2', 8.0, 13.14, 21.14, None, None),
-        ],
-        mark_positions=[
-            MarkPosition(1, 9.5, 45.0, None),
-        ],
-        extra_material=0.0,
-        total_centerline=21.14,
-        total_cut_length=21.14,
-        units=imperial_units,
-        bender_name="",
-        die_name="",
+    return BendSheetData.from_groups(
+        tooling=ToolingInfo(component_name="Test Component"),
+        geometry=GeometrySpecs(
+            tube_od=1.5, clr=4.5, die_offset=0.5,
+            precision=16, units=imperial_units, clr_values=[4.5],
+        ),
+        path=PathData(
+            straights=[
+                StraightSection(1, 10.0, (0, 0, 0), (10, 0, 0), (10, 0, 0)),
+                StraightSection(2, 8.0, (10, 0, 0), (18, 0, 0), (8, 0, 0)),
+            ],
+            bends=[BendData(number=1, angle=45.0, rotation=None, arc_length=3.14)],
+            segments=[
+                PathSegment('straight', 'Straight 1', 10.0, 0.0, 10.0, None, None),
+                PathSegment('bend', 'BEND 1', 3.14, 10.0, 13.14, 45.0, None),
+                PathSegment('straight', 'Straight 2', 8.0, 13.14, 21.14, None, None),
+            ],
+            mark_positions=[MarkPosition(1, 9.5, 45.0, None)],
+            total_centerline=21.14,
+            total_cut_length=21.14,
+            travel_direction="Left to Right",
+        ),
+        material=MaterialInfo(min_grip=6.0, extra_material=0.0),
+        warnings=SheetWarnings(),
     )
 
 
 @pytest.fixture
 def multi_bend_data(imperial_units: UnitConfig) -> BendSheetData:
     """Create BendSheetData with multiple bends for testing."""
-    return BendSheetData(
-        component_name="Multi-Bend Tube",
-        tube_od=1.75,
-        clr=5.25,
-        die_offset=0.75,
-        precision=16,
-        min_grip=8.0,
-        travel_direction="Top to Bottom",
-        starts_with_arc=False,
-        ends_with_arc=False,
-        clr_mismatch=False,
-        clr_values=[5.25, 5.25],
-        continuity_errors=[],
-        straights=[
-            StraightSection(1, 12.0, (0, 0, 0), (12, 0, 0), (12, 0, 0)),
-            StraightSection(2, 8.0, (12, 0, 0), (20, 0, 0), (8, 0, 0)),
-            StraightSection(3, 10.0, (20, 0, 0), (30, 0, 0), (10, 0, 0)),
-        ],
-        bends=[
-            BendData(number=1, angle=45.0, rotation=None, arc_length=4.0),
-            BendData(number=2, angle=90.0, rotation=30.0, arc_length=6.0),
-        ],
-        segments=[
-            PathSegment('straight', 'Straight 1', 12.0, 2.0, 14.0, None, None),
-            PathSegment('bend', 'BEND 1', 4.0, 14.0, 18.0, 45.0, None),
-            PathSegment('straight', 'Straight 2', 8.0, 18.0, 26.0, None, 30.0),
-            PathSegment('bend', 'BEND 2', 6.0, 26.0, 32.0, 90.0, None),
-            PathSegment('straight', 'Straight 3', 10.0, 32.0, 42.0, None, None),
-        ],
-        mark_positions=[
-            MarkPosition(1, 13.25, 45.0, None),
-            MarkPosition(2, 25.25, 90.0, 30.0),
-        ],
-        extra_material=2.0,
-        total_centerline=40.0,
-        total_cut_length=42.0,
-        units=imperial_units,
-        bender_name="Rogue RB-2",
-        die_name='1.75" x 5.25"',
+    return BendSheetData.from_groups(
+        tooling=ToolingInfo(
+            component_name="Multi-Bend Tube",
+            bender_name="Rogue RB-2",
+            die_name='1.75" x 5.25"',
+        ),
+        geometry=GeometrySpecs(
+            tube_od=1.75, clr=5.25, die_offset=0.75,
+            precision=16, units=imperial_units, clr_values=[5.25, 5.25],
+        ),
+        path=PathData(
+            straights=[
+                StraightSection(1, 12.0, (0, 0, 0), (12, 0, 0), (12, 0, 0)),
+                StraightSection(2, 8.0, (12, 0, 0), (20, 0, 0), (8, 0, 0)),
+                StraightSection(3, 10.0, (20, 0, 0), (30, 0, 0), (10, 0, 0)),
+            ],
+            bends=[
+                BendData(number=1, angle=45.0, rotation=None, arc_length=4.0),
+                BendData(number=2, angle=90.0, rotation=30.0, arc_length=6.0),
+            ],
+            segments=[
+                PathSegment('straight', 'Straight 1', 12.0, 2.0, 14.0, None, None),
+                PathSegment('bend', 'BEND 1', 4.0, 14.0, 18.0, 45.0, None),
+                PathSegment('straight', 'Straight 2', 8.0, 18.0, 26.0, None, 30.0),
+                PathSegment('bend', 'BEND 2', 6.0, 26.0, 32.0, 90.0, None),
+                PathSegment('straight', 'Straight 3', 10.0, 32.0, 42.0, None, None),
+            ],
+            mark_positions=[
+                MarkPosition(1, 13.25, 45.0, None),
+                MarkPosition(2, 25.25, 90.0, 30.0),
+            ],
+            total_centerline=40.0,
+            total_cut_length=42.0,
+            travel_direction="Top to Bottom",
+        ),
+        material=MaterialInfo(min_grip=8.0, extra_material=2.0),
+        warnings=SheetWarnings(),
     )
 
 
@@ -344,38 +343,30 @@ class TestGenerateHtmlBendSheet:
         self, metric_units: UnitConfig
     ) -> None:
         """Metric units are displayed correctly."""
-        data = BendSheetData(
-            component_name="Metric Tube",
-            tube_od=38.1,
-            clr=114.3,
-            die_offset=12.7,
-            precision=1,
-            min_grip=152.4,
-            travel_direction="Left to Right",
-            starts_with_arc=False,
-            ends_with_arc=False,
-            clr_mismatch=False,
-            clr_values=[114.3],
-            continuity_errors=[],
-            straights=[
-                StraightSection(1, 254.0, (0, 0, 0), (254, 0, 0), (254, 0, 0)),
-                StraightSection(2, 203.2, (254, 0, 0), (457.2, 0, 0), (203.2, 0, 0)),
-            ],
-            bends=[
-                BendData(number=1, angle=90.0, rotation=None, arc_length=179.5),
-            ],
-            segments=[
-                PathSegment('straight', 'Straight 1', 254.0, 0.0, 254.0, None, None),
-                PathSegment('bend', 'BEND 1', 179.5, 254.0, 433.5, 90.0, None),
-                PathSegment('straight', 'Straight 2', 203.2, 433.5, 636.7, None, None),
-            ],
-            mark_positions=[
-                MarkPosition(1, 241.3, 90.0, None),
-            ],
-            extra_material=0.0,
-            total_centerline=636.7,
-            total_cut_length=636.7,
-            units=metric_units,
+        data = BendSheetData.from_groups(
+            tooling=ToolingInfo(component_name="Metric Tube"),
+            geometry=GeometrySpecs(
+                tube_od=38.1, clr=114.3, die_offset=12.7,
+                precision=1, units=metric_units, clr_values=[114.3],
+            ),
+            path=PathData(
+                straights=[
+                    StraightSection(1, 254.0, (0, 0, 0), (254, 0, 0), (254, 0, 0)),
+                    StraightSection(2, 203.2, (254, 0, 0), (457.2, 0, 0), (203.2, 0, 0)),
+                ],
+                bends=[BendData(number=1, angle=90.0, rotation=None, arc_length=179.5)],
+                segments=[
+                    PathSegment('straight', 'Straight 1', 254.0, 0.0, 254.0, None, None),
+                    PathSegment('bend', 'BEND 1', 179.5, 254.0, 433.5, 90.0, None),
+                    PathSegment('straight', 'Straight 2', 203.2, 433.5, 636.7, None, None),
+                ],
+                mark_positions=[MarkPosition(1, 241.3, 90.0, None)],
+                total_centerline=636.7,
+                total_cut_length=636.7,
+                travel_direction="Left to Right",
+            ),
+            material=MaterialInfo(min_grip=152.4, extra_material=0.0),
+            warnings=SheetWarnings(),
         )
         html = generate_html_bend_sheet(data)
         assert "mm" in html  # Unit symbol appears

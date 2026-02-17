@@ -77,10 +77,7 @@ def format_metric(value: float, decimal_places: int) -> str:
         # Auto mode - use reasonable precision
         if abs(value) < 1:
             return f"{value:.2f}"
-        elif abs(value) < 10:
-            return f"{value:.1f}"
-        else:
-            return f"{value:.1f}"
+        return f"{value:.1f}"
     else:
         return f"{value:.{decimal_places}f}"
 
@@ -115,6 +112,8 @@ def get_precision_label(precision: int, units: UnitConfig) -> str:
         else:
             return f'{precision} decimal places'
     else:
+        # Fractional precision is always inch-based for tube bending,
+        # regardless of whether design units are feet or inches.
         labels: dict[int, str] = {
             0: 'Exact (decimal)',
             4: '1/4"',

@@ -7,9 +7,6 @@ import math
 from ..models.types import Vector3D, Point3D
 from .tolerances import CONNECTIVITY_CM, ZERO_MAGNITUDE, COLLINEAR_ANGLE_DEG
 
-# Re-export for backward compatibility
-CONNECTIVITY_TOLERANCE_CM: float = CONNECTIVITY_CM
-ZERO_MAGNITUDE_TOLERANCE: float = ZERO_MAGNITUDE
 
 
 class ZeroVectorError(ValueError):
@@ -80,11 +77,11 @@ def _safe_magnitude_product(v1: Vector3D, v2: Vector3D) -> float:
     mag1 = magnitude(v1)
     mag2 = magnitude(v2)
 
-    if mag1 < ZERO_MAGNITUDE_TOLERANCE:
+    if mag1 < ZERO_MAGNITUDE:
         raise ZeroVectorError(
             f"First vector has zero length (magnitude={mag1}): {v1}"
         )
-    if mag2 < ZERO_MAGNITUDE_TOLERANCE:
+    if mag2 < ZERO_MAGNITUDE:
         raise ZeroVectorError(
             f"Second vector has zero length (magnitude={mag2}): {v2}"
         )
@@ -153,7 +150,7 @@ def distance_between_points(p1: Point3D, p2: Point3D) -> float:
 
 
 def points_are_close(p1: Point3D, p2: Point3D,
-                     tolerance: float = CONNECTIVITY_TOLERANCE_CM) -> bool:
+                     tolerance: float = CONNECTIVITY_CM) -> bool:
     """
     Check if two points are within tolerance of each other.
 

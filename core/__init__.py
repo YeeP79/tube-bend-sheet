@@ -10,17 +10,19 @@ from .geometry import (
     points_are_close,
     vectors_are_collinear,
 )
-from .path_analysis import (
+from .geometry_extraction import (
     PathElement,
     PathElementLike,
     get_sketch_entity_endpoints,
     get_component_name,
-    build_ordered_path,
-    merge_collinear_lines,
-    validate_path_alternation,
     get_free_endpoint,
     determine_primary_axis,
     should_reverse_path_direction,
+)
+from .path_ordering import (
+    build_ordered_path,
+    merge_collinear_lines,
+    validate_path_alternation,
 )
 from .calculations import (
     validate_clr_consistency,

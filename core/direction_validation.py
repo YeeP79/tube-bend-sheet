@@ -40,15 +40,11 @@ def validate_grip_for_direction(
     reversed: bool = False,
 ) -> GripValidationResult:
     """
-    Validate if bend sequence is possible in given direction.
+    Validate middle straight sections against minimum grip length.
 
-    For normal direction:
-      - straights[:-1] must be >= min_grip (grip before each bend)
-      - straights[-1] must be >= min_tail
-
-    For reversed direction:
-      - straights[0] must be >= min_tail (now the tail)
-      - straights[1:] must be >= min_grip (grip before each bend)
+    Only middle sections (indices 1 to n-2) are checked here. The first
+    and last straights (grip and tail) are handled separately by
+    ``calculate_material_requirements``, which adds extra material as needed.
 
     Args:
         straights: List of straight sections in order
@@ -65,18 +61,11 @@ def validate_grip_for_direction(
 
     violations: list[int] = []
 
-    if reversed:
-        # Reversed: first becomes tail, rest need grip
-        # Check middle sections (indices 1 to n-2) for min_grip
-        for straight in straights[1:-1]:
-            if min_grip > 0 and straight.length < min_grip:
-                violations.append(straight.number)
-    else:
-        # Normal: last is tail, first and middle need grip
-        # Check middle sections (indices 1 to n-2) for min_grip
-        for straight in straights[1:-1]:
-            if min_grip > 0 and straight.length < min_grip:
-                violations.append(straight.number)
+    # Middle sections (between first and last) must meet min_grip
+    # regardless of direction — they can't receive extra material.
+    for straight in straights[1:-1]:
+        if min_grip > 0 and straight.length < min_grip:
+            violations.append(straight.number)
 
     if violations:
         direction_str = "reversed" if reversed else "current"

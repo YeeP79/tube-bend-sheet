@@ -35,7 +35,6 @@ sys.modules['storage'] = storage
 # Also alias the submodules for imports like `from core.calculations import x`
 sys.modules['core.geometry'] = core.geometry
 sys.modules['core.geometry_extraction'] = core.geometry_extraction
-sys.modules['core.path_analysis'] = core.path_analysis
 sys.modules['core.path_ordering'] = core.path_ordering
 sys.modules['core.calculations'] = core.calculations
 sys.modules['core.formatting'] = core.formatting

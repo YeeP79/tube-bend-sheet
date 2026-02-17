@@ -9,6 +9,7 @@ Run with: pytest tests/test_tubes.py -v
 from __future__ import annotations
 
 import json
+import math
 import threading
 import uuid
 from dataclasses import dataclass, field
@@ -95,6 +96,10 @@ class Tube:
 
     def matches_tube_od(self, tube_od: float, tolerance: float = 0.01) -> bool:
         if tube_od <= 0 or tolerance < 0:
+            return False
+        if math.isnan(tube_od) or math.isnan(tolerance):
+            return False
+        if math.isnan(self.tube_od):
             return False
         return abs(self.tube_od - tube_od) <= tolerance
 
@@ -1097,3 +1102,33 @@ class TestTubeManagerConcurrentAccess:
 
         assert len(errors) == 0, f"Errors occurred: {errors}"
         assert all(r == 1 for r in results), f"Unexpected results: {results}"
+
+
+class TestTubeMatchesNaN:
+    """Test NaN handling in Tube.matches_tube_od."""
+
+    def test_nan_tube_od_returns_false(self) -> None:
+        tube = Tube(id="t1", name="Test", tube_od=4.445)
+        assert tube.matches_tube_od(float("nan")) is False
+
+    def test_nan_tolerance_returns_false(self) -> None:
+        tube = Tube(id="t1", name="Test", tube_od=4.445)
+        assert tube.matches_tube_od(4.445, tolerance=float("nan")) is False
+
+    def test_nan_self_tube_od_returns_false(self) -> None:
+        """Tube with NaN tube_od (bypassing validation) returns False."""
+        tube = Tube.__new__(Tube)
+        object.__setattr__(tube, "id", "t1")
+        object.__setattr__(tube, "name", "Bad")
+        object.__setattr__(tube, "tube_od", float("nan"))
+        object.__setattr__(tube, "wall_thickness", 0.0)
+        object.__setattr__(tube, "material_type", "")
+        object.__setattr__(tube, "batch", "")
+        object.__setattr__(tube, "notes", "")
+        assert tube.matches_tube_od(4.445) is False
+
+    def test_valid_match_still_works(self) -> None:
+        tube = Tube(id="t1", name="Test", tube_od=4.445)
+        assert tube.matches_tube_od(4.445) is True
+        assert tube.matches_tube_od(4.44, tolerance=0.01) is True
+        assert tube.matches_tube_od(4.46, tolerance=0.01) is False

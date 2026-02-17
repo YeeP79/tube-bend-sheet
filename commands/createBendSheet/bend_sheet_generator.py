@@ -19,7 +19,15 @@ from ...core import (
     calculate_material_requirements,
 )
 from ...core.compensation import calculate_compensated_angle
-from ...models import UnitConfig, BendSheetData
+from ...models import (
+    UnitConfig,
+    BendSheetData,
+    ToolingInfo,
+    GeometrySpecs,
+    PathData,
+    MaterialInfo,
+    SheetWarnings,
+)
 
 if TYPE_CHECKING:
     from ...core import PathElement
@@ -111,11 +119,17 @@ class BendSheetGenerator:
             )
 
         # Calculate straights and bends
-        straights, bends = calculate_straights_and_bends(
-            line_endpoints, arcs, start_point, clr, self._units,
-            starts_with_arc=starts_with_arc,
-            ends_with_arc=ends_with_arc,
-        )
+        try:
+            straights, bends = calculate_straights_and_bends(
+                line_endpoints, arcs, start_point, clr, self._units,
+                starts_with_arc=starts_with_arc,
+                ends_with_arc=ends_with_arc,
+            )
+        except ValueError as e:
+            return GenerationResult(
+                success=False,
+                error=f"Path geometry error: {e}",
+            )
 
         # Validate we have geometry to work with (straights or bends)
         if not straights and not bends:
@@ -219,34 +233,44 @@ class BendSheetGenerator:
                 + material.effective_start_allowance
             )
 
-        # Build sheet data
-        sheet_data = BendSheetData(
+        # Build sheet data from focused sub-groups
+        tooling = ToolingInfo(
             component_name=component_name,
-            tube_od=params.tube_od,
-            clr=clr,
-            die_offset=params.die_offset,
-            precision=params.precision,
-            min_grip=params.min_grip,
-            travel_direction=travel_direction,
-            starts_with_arc=starts_with_arc,
-            ends_with_arc=ends_with_arc,
-            clr_mismatch=clr_mismatch,
-            clr_values=clr_values,
-            continuity_errors=[],
-            straights=straights,
-            bends=bends,
-            segments=segments,
-            mark_positions=mark_positions,
-            extra_material=material.extra_material,
-            total_centerline=total_centerline,
-            total_cut_length=total_cut_length,
-            units=self._units,
             bender_name=params.bender_name,
             die_name=params.die_name,
             bender_notes=params.bender_notes,
             die_notes=params.die_notes,
-            grip_violations=material.grip_violations,
+            tube_name=params.tube_name,
+            wall_thickness=params.wall_thickness,
+            material_type=params.material_type,
+            apply_compensation=params.apply_compensation,
+        )
+        geometry = GeometrySpecs(
+            tube_od=params.tube_od,
+            clr=clr,
+            die_offset=params.die_offset,
+            precision=params.precision,
+            units=self._units,
+            clr_mismatch=clr_mismatch,
+            clr_values=clr_values,
+        )
+        path_data = PathData(
+            straights=straights,
+            bends=bends,
+            segments=segments,
+            mark_positions=mark_positions,
+            total_centerline=total_centerline,
+            total_cut_length=total_cut_length,
+            travel_direction=travel_direction,
+            starts_with_arc=starts_with_arc,
+            ends_with_arc=ends_with_arc,
+            continuity_errors=[],
+        )
+        material_info = MaterialInfo(
+            min_grip=params.min_grip,
+            extra_material=material.extra_material,
             min_tail=params.min_tail,
+            grip_violations=material.grip_violations,
             tail_violation=material.tail_violation,
             has_synthetic_grip=material.has_synthetic_grip,
             has_synthetic_tail=material.has_synthetic_tail,
@@ -258,12 +282,13 @@ class BendSheetGenerator:
             has_tail_extension=material.has_tail_extension,
             effective_start_allowance=material.effective_start_allowance,
             effective_end_allowance=material.effective_end_allowance,
+        )
+        sheet_warnings = SheetWarnings(
             spring_back_warning=spring_back_warning,
-            tube_name=params.tube_name,
-            wall_thickness=params.wall_thickness,
-            material_type=params.material_type,
-            apply_compensation=params.apply_compensation,
             compensation_warnings=compensation_warnings,
+        )
+        sheet_data = BendSheetData.from_groups(
+            tooling, geometry, path_data, material_info, sheet_warnings,
         )
 
         return GenerationResult(success=True, data=sheet_data)

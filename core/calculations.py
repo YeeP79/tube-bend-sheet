@@ -34,9 +34,8 @@ from .geometry import (
     angle_between_vectors,
     calculate_rotation,
     distance_between_points,
-    ZERO_MAGNITUDE_TOLERANCE,
 )
-from .tolerances import CLR_RATIO, CLR_MIN_FLOOR
+from .tolerances import CLR_RATIO, CLR_MIN_FLOOR, ZERO_MAGNITUDE
 
 if TYPE_CHECKING:
     import adsk.fusion
@@ -44,8 +43,6 @@ if TYPE_CHECKING:
 from ..models.bend_data import StraightSection, BendData, PathSegment, MarkPosition
 from ..models.units import UnitConfig
 
-# Re-export for backward compatibility
-CLR_TOLERANCE_RATIO: float = CLR_RATIO
 
 
 def validate_clr_consistency(
@@ -84,7 +81,7 @@ def validate_clr_consistency(
 
     # Use ratio-based tolerance (0.2% of CLR) with minimum floor
     # The minimum floor prevents false mismatches with very small CLR values
-    tolerance = max(clr * CLR_TOLERANCE_RATIO, CLR_MIN_FLOOR)
+    tolerance = max(clr * CLR_RATIO, CLR_MIN_FLOOR)
     has_mismatch = any(abs(c - clr) > tolerance for c in clr_values)
 
     return clr, has_mismatch, clr_values
@@ -176,6 +173,13 @@ def calculate_straights_and_bends(
 
     for i, (start, end) in enumerate(corrected):
         vector: Vector3D = (end[0] - start[0], end[1] - start[1], end[2] - start[2])
+
+        # Validate before storing - zero-length lines cannot define bend planes
+        if magnitude(vector) < ZERO_MAGNITUDE:
+            raise ValueError(
+                f"Line {i + 1} has zero length - cannot calculate bend plane"
+            )
+
         vectors.append(vector)
 
         length_cm = magnitude(vector)
@@ -196,13 +200,6 @@ def calculate_straights_and_bends(
             ),
             vector=vector
         ))
-    
-    # Validate all vectors are non-zero (zero-length lines cannot define bend planes)
-    for i, v in enumerate(vectors):
-        if magnitude(v) < ZERO_MAGNITUDE_TOLERANCE:
-            raise ValueError(
-                f"Line {i + 1} has zero length - cannot calculate bend plane"
-            )
 
     # Calculate expected vector count based on path structure
     # Standard: line-arc-line needs vectors = arcs + 1

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import TypedDict
 
@@ -132,8 +133,12 @@ class Tube:
 
         Returns:
             True if tube tube_od matches within tolerance, False otherwise.
-            Returns False for invalid inputs (negative values).
+            Returns False for invalid inputs (negative values, NaN).
         """
         if tube_od <= 0 or tolerance < 0:
+            return False
+        if math.isnan(tube_od) or math.isnan(tolerance):
+            return False
+        if math.isnan(self.tube_od):
             return False
         return abs(self.tube_od - tube_od) <= tolerance

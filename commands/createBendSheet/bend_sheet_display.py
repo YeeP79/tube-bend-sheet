@@ -132,7 +132,12 @@ class BendSheetDisplay:
         if not name:
             return "tube_bend_sheet"
 
-        return (
+        # Strip non-printable/control characters
+        name = "".join(c for c in name if c.isprintable())
+        if not name:
+            return "tube_bend_sheet"
+
+        result = (
             name.replace(" ", "_")
             .replace("/", "-")
             .replace("\\", "-")
@@ -144,3 +149,6 @@ class BendSheetDisplay:
             .replace(">", "-")
             .replace("|", "-")
         )
+
+        # Truncate to avoid filesystem path length limits
+        return result[:100]

@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import json
-import threading
-import uuid
 from pathlib import Path
+from typing import Any
 
 from ..models.bender import (
     Bender,
@@ -13,6 +12,7 @@ from ..models.bender import (
     validate_bender_values,
     validate_die_values,
 )
+from .json_store import JsonFileStore
 
 
 class ProfileSaveError(IOError):
@@ -27,7 +27,7 @@ class ProfileLoadError(IOError):
     pass
 
 
-class ProfileManager:
+class ProfileManager(JsonFileStore):
     """
     Manages bender profiles stored in JSON.
 
@@ -40,7 +40,7 @@ class ProfileManager:
     FILENAME = 'benders.json'
     CURRENT_VERSION = '1.0'
     SUPPORTED_VERSIONS = {'1.0'}
-    
+
     def __init__(self, addin_path: str) -> None:
         """
         Initialize the profile manager.
@@ -48,13 +48,10 @@ class ProfileManager:
         Args:
             addin_path: Path to the add-in root directory
         """
-        self._addin_path = Path(addin_path)
-        self._resources_path = self._addin_path / 'resources'
-        self._profiles_path = self._resources_path / self.FILENAME
+        resources_path = Path(addin_path) / 'resources'
+        super().__init__(resources_path, self.FILENAME)
         self._benders: list[Bender] = []
-        self._loaded = False
-        self._load_lock = threading.Lock()
-    
+
     @property
     def benders(self) -> list[Bender]:
         """Get all bender profiles.
@@ -62,20 +59,8 @@ class ProfileManager:
         Thread-safe lazy loading using a lock to prevent race conditions
         when multiple threads access benders simultaneously.
         """
-        with self._load_lock:
-            if not self._loaded:
-                self.load()
+        self._ensure_loaded()
         return self._benders
-
-    def reload(self) -> None:
-        """
-        Force reload profiles from disk.
-
-        Use this when the profile file may have been modified externally
-        and you need to pick up the latest changes.
-        """
-        self._loaded = False
-        self.load()
 
     def load(self) -> None:
         """
@@ -90,13 +75,13 @@ class ProfileManager:
         """
         self._benders = []
 
-        if not self._profiles_path.exists():
+        if not self._file_path.exists():
             # Create default profile if none exists
             self._create_default_profiles()
             self.save()
         else:
             try:
-                with open(self._profiles_path, encoding='utf-8') as f:
+                with open(self._file_path, encoding='utf-8') as f:
                     data = json.load(f)
 
                 # Validate top-level structure
@@ -144,45 +129,26 @@ class ProfileManager:
                 raise ProfileLoadError(f"Failed to load bender profiles: {e}") from e
 
         self._loaded = True
-    
+
     def save(self) -> None:
         """
         Save profiles to disk using atomic write pattern.
 
-        Writes to a temporary file first, then atomically renames to target.
-        This prevents data corruption from interrupted writes.
-
         Raises:
             ProfileSaveError: If file cannot be written
         """
-        temp_path = self._profiles_path.with_suffix('.tmp')
-
         try:
-            # Ensure resources directory exists
-            self._resources_path.mkdir(parents=True, exist_ok=True)
-
-            data = {
-                'version': self.CURRENT_VERSION,
-                'benders': [b.to_dict() for b in self._benders]
-            }
-
-            # Write to temp file first
-            with open(temp_path, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2)
-
-            # Atomic rename to target (overwrites existing)
-            temp_path.replace(self._profiles_path)
-
-        except (OSError, TypeError) as e:
-            # Clean up temp file on failure
-            if temp_path.exists():
-                try:
-                    temp_path.unlink()
-                except OSError:
-                    pass  # Best effort cleanup
-
+            super().save()
+        except OSError as e:
             raise ProfileSaveError(f"Failed to save bender profiles: {e}") from e
-    
+
+    def _get_save_data(self) -> dict[str, Any]:
+        """Return the JSON-serializable dict for bender profiles."""
+        return {
+            'version': self.CURRENT_VERSION,
+            'benders': [b.to_dict() for b in self._benders],
+        }
+
     def _create_default_profiles(self) -> None:
         """Create default bender profiles.
 
@@ -215,34 +181,30 @@ class ProfileManager:
             notes='Default bender profile'
         )
         self._benders = [jd2]
-    
-    def _generate_id(self) -> str:
-        """Generate a unique ID."""
-        return str(uuid.uuid4())[:8]
-    
+
     def get_bender_by_id(self, bender_id: str) -> Bender | None:
         """Find a bender by ID."""
         for bender in self.benders:
             if bender.id == bender_id:
                 return bender
         return None
-    
+
     def get_bender_by_name(self, name: str) -> Bender | None:
         """Find a bender by name."""
         for bender in self.benders:
             if bender.name == name:
                 return bender
         return None
-    
+
     def add_bender(self, name: str, min_grip: float, notes: str = "") -> Bender:
         """
         Add a new bender profile.
-        
+
         Args:
             name: Display name for the bender
             min_grip: Minimum grip length
             notes: Optional notes
-            
+
         Returns:
             The created Bender
         """
@@ -255,7 +217,7 @@ class ProfileManager:
         self._benders.append(bender)
         self.save()
         return bender
-    
+
     def update_bender(self, bender_id: str, name: str | None = None,
                       min_grip: float | None = None, notes: str | None = None) -> bool:
         """
@@ -289,11 +251,11 @@ class ProfileManager:
 
         self.save()
         return True
-    
+
     def delete_bender(self, bender_id: str) -> bool:
         """
         Delete a bender profile.
-        
+
         Returns:
             True if bender was found and deleted
         """
@@ -303,7 +265,7 @@ class ProfileManager:
                 self.save()
                 return True
         return False
-    
+
     def add_die_to_bender(self, bender_id: str, name: str, tube_od: float,
                           clr: float, offset: float, min_tail: float = 0.0,
                           notes: str = "") -> Die | None:
@@ -329,7 +291,7 @@ class ProfileManager:
         bender.add_die(die)
         self.save()
         return die
-    
+
     def update_die(self, bender_id: str, die_id: str, name: str | None = None,
                    tube_od: float | None = None, clr: float | None = None,
                    offset: float | None = None, min_tail: float | None = None,
@@ -384,46 +346,46 @@ class ProfileManager:
 
         self.save()
         return True
-    
+
     def delete_die(self, bender_id: str, die_id: str) -> bool:
         """
         Delete a die from a bender.
-        
+
         Returns:
             True if die was found and deleted
         """
         bender = self.get_bender_by_id(bender_id)
         if bender is None:
             return False
-        
+
         if bender.remove_die(die_id):
             self.save()
             return True
         return False
-    
+
     def find_die_for_clr(self, clr: float, bender_id: str | None = None,
                          tolerance: float = 0.01) -> tuple[Bender, Die] | None:
         """
         Find a die that matches the given CLR.
-        
+
         Args:
             clr: Center line radius to match
             bender_id: Optional bender to search in (searches all if None)
             tolerance: CLR matching tolerance
-            
+
         Returns:
             Tuple of (Bender, Die) if found, None otherwise
         """
         benders_to_search = (
-            [self.get_bender_by_id(bender_id)] if bender_id 
+            [self.get_bender_by_id(bender_id)] if bender_id
             else self.benders
         )
-        
+
         for bender in benders_to_search:
             if bender is None:
                 continue
             die = bender.find_die_for_clr(clr, tolerance)
             if die:
                 return (bender, die)
-        
+
         return None

@@ -7,8 +7,8 @@ from dataclasses import dataclass, field
 from typing import TypedDict
 
 # Default tolerance for die CLR matching (in display units).
-# This value is also defined in core/tolerances.py as DIE_CLR_MATCH_DEFAULT.
-# We duplicate it here to avoid circular imports (models -> core -> models).
+# Duplicated from core/tolerances.py to avoid circular import
+# (models → core → models).
 _DIE_CLR_MATCH_DEFAULT: float = 0.01
 
 

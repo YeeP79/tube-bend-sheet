@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 if TYPE_CHECKING:
     import adsk.core
@@ -36,6 +36,33 @@ OutgoingAction = Literal[
     'removeBender',
     'removeDie',
 ]
+
+
+class DieDisplayDict(TypedDict):
+    """Type-safe dict for die display data sent to HTML."""
+
+    id: str
+    name: str
+    tube_od: float
+    clr: float
+    offset: float
+    min_tail: float
+    notes: str
+    tube_od_display: str
+    clr_display: str
+    offset_display: str
+    min_tail_display: str
+
+
+class BenderDisplayDict(TypedDict):
+    """Type-safe dict for bender display data sent to HTML."""
+
+    id: str
+    name: str
+    min_grip: float
+    notes: str
+    min_grip_display: str
+    dies: list[DieDisplayDict]
 
 
 @dataclass(slots=True)
@@ -121,7 +148,7 @@ class HTMLBridge:
         display_value = value_cm * self._units.cm_to_unit
         return f"{display_value:.2f}{self._units.unit_symbol}"
 
-    def _format_bender_for_display(self, bender: Bender) -> dict[str, Any]:
+    def _format_bender_for_display(self, bender: Bender) -> BenderDisplayDict:
         """
         Format a bender for HTML display with converted units.
 
@@ -129,26 +156,31 @@ class HTMLBridge:
             bender: The bender to format
 
         Returns:
-            Dict with bender data plus formatted display strings
+            Type-safe dict with bender data plus formatted display strings
         """
-        # Convert TypedDict to regular dict so we can add display fields
-        bender_dict = bender.to_dict()
-        data: dict[str, Any] = dict(bender_dict)
-        # Add formatted display values
-        data['min_grip_display'] = self._format_value(bender.min_grip)
-
-        # Format each die - convert TypedDicts to regular dicts
-        formatted_dies: list[dict[str, Any]] = []
-        for i, die in enumerate(bender.dies):
-            die_data: dict[str, Any] = dict(bender_dict['dies'][i])
-            die_data['clr_display'] = self._format_value(die.clr)
-            die_data['tube_od_display'] = self._format_value(die.tube_od)
-            die_data['offset_display'] = self._format_value(die.offset)
-            die_data['min_tail_display'] = self._format_value(die.min_tail)
-            formatted_dies.append(die_data)
-        data['dies'] = formatted_dies
-
-        return data
+        formatted_dies: list[DieDisplayDict] = []
+        for die in bender.dies:
+            formatted_dies.append(DieDisplayDict(
+                id=die.id,
+                name=die.name,
+                tube_od=die.tube_od,
+                clr=die.clr,
+                offset=die.offset,
+                min_tail=die.min_tail,
+                notes=die.notes,
+                tube_od_display=self._format_value(die.tube_od),
+                clr_display=self._format_value(die.clr),
+                offset_display=self._format_value(die.offset),
+                min_tail_display=self._format_value(die.min_tail),
+            ))
+        return BenderDisplayDict(
+            id=bender.id,
+            name=bender.name,
+            min_grip=bender.min_grip,
+            notes=bender.notes,
+            min_grip_display=self._format_value(bender.min_grip),
+            dies=formatted_dies,
+        )
 
     def send_benders(self, benders: list[Bender]) -> None:
         """
@@ -157,7 +189,7 @@ class HTMLBridge:
         Args:
             benders: List of all benders to display
         """
-        formatted = [self._format_bender_for_display(b) for b in benders]
+        formatted: list[BenderDisplayDict] = [self._format_bender_for_display(b) for b in benders]
         data = json.dumps(formatted)
         self._browser_input.sendInfoToHTML('loadBenders', data)
 

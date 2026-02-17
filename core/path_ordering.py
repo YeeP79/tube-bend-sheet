@@ -6,6 +6,7 @@ and validate path structure for tube bending operations.
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Sequence
 from typing import TypeVar
 
@@ -192,9 +193,10 @@ def merge_collinear_lines(path: list[_T]) -> list[_T]:
             merged_outer_end = outer2
             i += 1
 
-        # If we merged anything, update the element's endpoints
+        # If we merged anything, copy the element before updating endpoints
+        # so that the caller's original elements are not mutated.
         if (merged_outer_start, merged_outer_end) != merged_elem.endpoints:
-            # Mutate endpoints on the element we keep
+            merged_elem = copy.copy(merged_elem)
             # PathElement and MockPathElement both support direct attribute assignment
             merged_elem.endpoints = (merged_outer_start, merged_outer_end)  # type: ignore[attr-defined]
 
