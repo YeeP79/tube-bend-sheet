@@ -392,6 +392,7 @@ def command_execute(args: adsk.core.CommandEventArgs) -> None:
             settings = TubeSettings(
                 bender_id=params.bender_id,
                 die_id=params.die_id,
+                tube_id=params.tube_id,
                 tube_od=params.tube_od,
                 precision=params.precision,
                 travel_reversed=params.travel_reversed,

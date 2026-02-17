@@ -18,20 +18,22 @@ class TubeSettings:
     """Settings stored on a tube path for bend calculation."""
     bender_id: str = ""
     die_id: str = ""
+    tube_id: str = ""
     tube_od: float = 0.0
     precision: int = 16
     travel_reversed: bool = False
-    
+
     def to_json(self) -> str:
         """Serialize to JSON string."""
         return json.dumps({
             'bender_id': self.bender_id,
             'die_id': self.die_id,
+            'tube_id': self.tube_id,
             'tube_od': self.tube_od,
             'precision': self.precision,
             'travel_reversed': self.travel_reversed,
         })
-    
+
     @classmethod
     def from_json(cls, json_str: str) -> TubeSettings:
         """Deserialize from JSON string."""
@@ -40,6 +42,7 @@ class TubeSettings:
             return cls(
                 bender_id=data.get('bender_id', ''),
                 die_id=data.get('die_id', ''),
+                tube_id=data.get('tube_id', ''),
                 tube_od=data.get('tube_od', 0.0),
                 precision=data.get('precision', 16),
                 travel_reversed=data.get('travel_reversed', False),

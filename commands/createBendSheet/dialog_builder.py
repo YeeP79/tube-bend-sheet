@@ -145,11 +145,13 @@ class BendSheetDialogBuilder:
     def build_tube_dropdown(
         self,
         selected_die_tube_od: float | None = None,
+        saved_tube_id: str = "",
     ) -> adsk.core.DropDownCommandInput:
         """Create and populate the tube selection dropdown.
 
         Args:
             selected_die_tube_od: Tube OD of selected die for filtering tubes
+            saved_tube_id: Previously saved tube ID to restore selection
 
         Returns:
             The created dropdown input
@@ -165,17 +167,27 @@ class BendSheetDialogBuilder:
         # Clear and rebuild tube ID map
         self._tube_id_map.clear()
 
+        selected_tube_idx: int = 0
+
         if self._tube_manager and selected_die_tube_od is not None:
             # Filter tubes by matching tube OD
             matching_tubes = self._tube_manager.get_tubes_by_tube_od(
                 selected_die_tube_od, tolerance=0.01
             )
-            for tube in matching_tubes:
+            for i, tube in enumerate(matching_tubes):
                 display_name = tube.name
                 if tube.batch:
                     display_name += f" [{tube.batch}]"
-                items.add(display_name, False)
+                is_selected = bool(saved_tube_id and tube.id == saved_tube_id)
+                items.add(display_name, is_selected)
                 self._tube_id_map[display_name] = tube.id
+                if is_selected:
+                    selected_tube_idx = i + 1
+
+        # Ensure correct selection state
+        if selected_tube_idx > 0:
+            items.item(0).isSelected = False
+            items.item(selected_tube_idx).isSelected = True
 
         return dropdown
 
@@ -457,16 +469,19 @@ class BendSheetDialogBuilder:
 
         # Tube dropdown (filtered by selected die's tube OD)
         selected_die_tube_od: float | None = None
+        saved_tube_id = saved_settings.tube_id if saved_settings else ""
         if selected_bender_idx > 0 and self._profile_manager:
             bender = self._profile_manager.benders[selected_bender_idx - 1]
             if saved_settings and saved_settings.die_id:
                 die = bender.get_die_by_id(saved_settings.die_id)
                 if die:
                     selected_die_tube_od = die.tube_od
-        self.build_tube_dropdown(selected_die_tube_od)
+        self.build_tube_dropdown(selected_die_tube_od, saved_tube_id)
 
-        # Compensation checkbox
-        self.build_compensation_checkbox()
+        # Compensation checkbox (enabled if a tube was restored)
+        comp_checkbox = self.build_compensation_checkbox()
+        if saved_tube_id:
+            comp_checkbox.isEnabled = True  # type: ignore[attr-defined]
 
         # Value inputs
         self.build_value_inputs(detected_clr, saved_settings)
