@@ -18,6 +18,7 @@ from .geometry_extraction import (
 from .path_ordering import (
     elements_are_connected,
     build_ordered_path,
+    merge_collinear_lines,
     validate_path_alternation,
 )
 
@@ -37,5 +38,6 @@ __all__ = [
     # Path ordering
     'elements_are_connected',
     'build_ordered_path',
+    'merge_collinear_lines',
     'validate_path_alternation',
 ]

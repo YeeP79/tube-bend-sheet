@@ -8,6 +8,7 @@ from .geometry import (
     calculate_rotation,
     distance_between_points,
     points_are_close,
+    vectors_are_collinear,
 )
 from .path_analysis import (
     PathElement,
@@ -15,6 +16,7 @@ from .path_analysis import (
     get_sketch_entity_endpoints,
     get_component_name,
     build_ordered_path,
+    merge_collinear_lines,
     validate_path_alternation,
     get_free_endpoint,
     determine_primary_axis,
@@ -47,6 +49,7 @@ from .tolerances import (
     CLR_MIN_FLOOR,
     DIE_CLR_MATCH_DEFAULT,
     CLR_MATCH_DISPLAY,
+    COLLINEAR_ANGLE_DEG,
 )
 
 __all__ = [
@@ -58,12 +61,14 @@ __all__ = [
     'calculate_rotation',
     'distance_between_points',
     'points_are_close',
+    'vectors_are_collinear',
     # Path analysis
     'PathElement',
     'PathElementLike',
     'get_sketch_entity_endpoints',
     'get_component_name',
     'build_ordered_path',
+    'merge_collinear_lines',
     'validate_path_alternation',
     'get_free_endpoint',
     'determine_primary_axis',
@@ -92,4 +97,5 @@ __all__ = [
     'CLR_MIN_FLOOR',
     'DIE_CLR_MATCH_DEFAULT',
     'CLR_MATCH_DISPLAY',
+    'COLLINEAR_ANGLE_DEG',
 ]

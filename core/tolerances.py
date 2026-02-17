@@ -28,3 +28,7 @@ DIE_CLR_MATCH_DEFAULT: float = 0.01
 # CLR match tolerance for dropdown display (in display units)
 # More lenient tolerance for showing checkmark in die dropdown
 CLR_MATCH_DISPLAY: float = 0.1
+
+# Collinearity angle tolerance (in degrees)
+# Lines within this angle are considered truly collinear (floating point tolerance only)
+COLLINEAR_ANGLE_DEG: float = 0.01

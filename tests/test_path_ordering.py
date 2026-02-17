@@ -11,6 +11,7 @@ from helpers import MockPathElement
 from core.path_ordering import (
     build_ordered_path,
     elements_are_connected,
+    merge_collinear_lines,
     validate_path_alternation,
 )
 
@@ -304,3 +305,157 @@ class TestBuildOrderedPath:
         assert len(ordered) == 4
         # All original elements should be in output
         assert {id(e) for e in [e1, e2, e3, e4]} == {id(e) for e in ordered}
+
+
+class TestMergeCollinearLines:
+    """Test merge_collinear_lines() function."""
+
+    # Happy path: two collinear lines merged
+    def test_two_collinear_lines_merged(self) -> None:
+        """Two collinear lines along X axis merge into one."""
+        line1 = MockPathElement('line', ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)))
+        line2 = MockPathElement('line', ((1.0, 0.0, 0.0), (2.0, 0.0, 0.0)))
+
+        result = merge_collinear_lines([line1, line2])
+
+        assert len(result) == 1
+        assert result[0].element_type == 'line'
+        assert result[0].endpoints == ((0.0, 0.0, 0.0), (2.0, 0.0, 0.0))
+
+    def test_two_collinear_lines_3d(self) -> None:
+        """Two collinear lines in 3D merge correctly."""
+        line1 = MockPathElement('line', ((0.0, 0.0, 0.0), (1.0, 1.0, 1.0)))
+        line2 = MockPathElement('line', ((1.0, 1.0, 1.0), (2.0, 2.0, 2.0)))
+
+        result = merge_collinear_lines([line1, line2])
+
+        assert len(result) == 1
+        assert result[0].endpoints == ((0.0, 0.0, 0.0), (2.0, 2.0, 2.0))
+
+    # Non-collinear consecutive lines are not merged
+    def test_two_non_collinear_lines_unchanged(self) -> None:
+        """Two lines at 90 degrees are not merged."""
+        line1 = MockPathElement('line', ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)))
+        line2 = MockPathElement('line', ((1.0, 0.0, 0.0), (1.0, 1.0, 0.0)))
+
+        result = merge_collinear_lines([line1, line2])
+
+        assert len(result) == 2
+        assert result[0].endpoints == ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0))
+        assert result[1].endpoints == ((1.0, 0.0, 0.0), (1.0, 1.0, 0.0))
+
+    # Three collinear lines merge into one
+    def test_three_collinear_lines_merged(self) -> None:
+        """Three consecutive collinear lines merge into one."""
+        line1 = MockPathElement('line', ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)))
+        line2 = MockPathElement('line', ((1.0, 0.0, 0.0), (2.0, 0.0, 0.0)))
+        line3 = MockPathElement('line', ((2.0, 0.0, 0.0), (3.0, 0.0, 0.0)))
+
+        result = merge_collinear_lines([line1, line2, line3])
+
+        assert len(result) == 1
+        assert result[0].endpoints == ((0.0, 0.0, 0.0), (3.0, 0.0, 0.0))
+
+    # Line-arc-line: no consecutive lines, unchanged
+    def test_line_arc_line_unchanged(self) -> None:
+        """Standard line-arc-line path passes through unchanged."""
+        line1 = MockPathElement('line', ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)))
+        arc = MockPathElement('arc', ((1.0, 0.0, 0.0), (2.0, 0.0, 0.0)))
+        line2 = MockPathElement('line', ((2.0, 0.0, 0.0), (3.0, 0.0, 0.0)))
+
+        result = merge_collinear_lines([line1, arc, line2])
+
+        assert len(result) == 3
+        assert result[0].element_type == 'line'
+        assert result[1].element_type == 'arc'
+        assert result[2].element_type == 'line'
+
+    # Mixed: first pair collinear, second pair not
+    def test_mixed_collinear_and_non_collinear(self) -> None:
+        """First two lines collinear (merged), then arc, then two non-collinear lines (kept)."""
+        line1 = MockPathElement('line', ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)))
+        line2 = MockPathElement('line', ((1.0, 0.0, 0.0), (2.0, 0.0, 0.0)))  # Collinear with line1
+        arc = MockPathElement('arc', ((2.0, 0.0, 0.0), (3.0, 0.0, 0.0)))
+        line3 = MockPathElement('line', ((3.0, 0.0, 0.0), (4.0, 0.0, 0.0)))
+        line4 = MockPathElement('line', ((4.0, 0.0, 0.0), (4.0, 1.0, 0.0)))  # 90 deg, not collinear
+
+        result = merge_collinear_lines([line1, line2, arc, line3, line4])
+
+        assert len(result) == 4  # Merged line, arc, line3, line4
+        assert result[0].endpoints == ((0.0, 0.0, 0.0), (2.0, 0.0, 0.0))  # Merged
+        assert result[1].element_type == 'arc'
+        assert result[2].endpoints == ((3.0, 0.0, 0.0), (4.0, 0.0, 0.0))
+        assert result[3].endpoints == ((4.0, 0.0, 0.0), (4.0, 1.0, 0.0))
+
+    # Edge cases
+    def test_empty_path(self) -> None:
+        """Empty path returns empty list."""
+        result = merge_collinear_lines([])
+        assert result == []
+
+    def test_single_element(self) -> None:
+        """Single element passes through unchanged."""
+        line = MockPathElement('line', ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)))
+        result = merge_collinear_lines([line])
+        assert len(result) == 1
+        assert result[0] is line
+
+    def test_single_arc(self) -> None:
+        """Single arc passes through unchanged."""
+        arc = MockPathElement('arc', ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)))
+        result = merge_collinear_lines([arc])
+        assert len(result) == 1
+        assert result[0] is arc
+
+    # Different endpoint orientations (end-to-start, start-to-start, etc.)
+    def test_end_to_start_connection(self) -> None:
+        """Lines connected end-to-start (normal case)."""
+        line1 = MockPathElement('line', ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)))
+        line2 = MockPathElement('line', ((1.0, 0.0, 0.0), (2.0, 0.0, 0.0)))
+
+        result = merge_collinear_lines([line1, line2])
+        assert len(result) == 1
+        assert result[0].endpoints == ((0.0, 0.0, 0.0), (2.0, 0.0, 0.0))
+
+    def test_end_to_end_connection(self) -> None:
+        """Lines connected end-to-end (reversed second line)."""
+        line1 = MockPathElement('line', ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)))
+        line2 = MockPathElement('line', ((2.0, 0.0, 0.0), (1.0, 0.0, 0.0)))
+
+        result = merge_collinear_lines([line1, line2])
+        assert len(result) == 1
+        assert result[0].endpoints == ((0.0, 0.0, 0.0), (2.0, 0.0, 0.0))
+
+    def test_start_to_start_connection(self) -> None:
+        """Lines connected start-to-start (both starts at shared point)."""
+        line1 = MockPathElement('line', ((1.0, 0.0, 0.0), (0.0, 0.0, 0.0)))
+        line2 = MockPathElement('line', ((1.0, 0.0, 0.0), (2.0, 0.0, 0.0)))
+
+        result = merge_collinear_lines([line1, line2])
+        assert len(result) == 1
+        assert result[0].endpoints == ((0.0, 0.0, 0.0), (2.0, 0.0, 0.0))
+
+    def test_start_to_end_connection(self) -> None:
+        """Lines connected start-to-end (reversed first line)."""
+        line1 = MockPathElement('line', ((1.0, 0.0, 0.0), (0.0, 0.0, 0.0)))
+        line2 = MockPathElement('line', ((2.0, 0.0, 0.0), (1.0, 0.0, 0.0)))
+
+        result = merge_collinear_lines([line1, line2])
+        assert len(result) == 1
+        # outer1 is the non-shared end of line1 (0,0,0), outer2 is non-shared end of line2 (2,0,0)
+        assert result[0].endpoints == ((0.0, 0.0, 0.0), (2.0, 0.0, 0.0))
+
+    # Full pipeline: merge then validate
+    def test_collinear_merge_enables_validation(self) -> None:
+        """After merging collinear lines, path validates as line-arc-line."""
+        line1 = MockPathElement('line', ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)))
+        line2 = MockPathElement('line', ((1.0, 0.0, 0.0), (2.0, 0.0, 0.0)))  # Collinear
+        arc = MockPathElement('arc', ((2.0, 0.0, 0.0), (3.0, 0.0, 0.0)))
+        line3 = MockPathElement('line', ((3.0, 0.0, 0.0), (4.0, 0.0, 0.0)))
+
+        merged = merge_collinear_lines([line1, line2, arc, line3])
+        is_valid, error = validate_path_alternation(merged)
+
+        assert is_valid is True
+        assert error == ""
+        assert len(merged) == 3  # merged_line, arc, line3

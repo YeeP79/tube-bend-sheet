@@ -14,6 +14,7 @@ from core.geometry import (
     dot_product,
     magnitude,
     points_are_close,
+    vectors_are_collinear,
 )
 
 
@@ -143,3 +144,69 @@ class TestPointOperations:
 
     def test_points_are_close_outside_tolerance(self):
         assert not points_are_close((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), tolerance=0.1)
+
+
+class TestVectorsAreCollinear:
+    """Test vectors_are_collinear() function."""
+
+    # Happy path: parallel vectors
+    def test_same_direction_parallel(self):
+        """Vectors pointing the same direction are collinear."""
+        assert vectors_are_collinear((1.0, 0.0, 0.0), (2.0, 0.0, 0.0)) is True
+
+    def test_anti_parallel(self):
+        """Vectors pointing opposite directions are collinear."""
+        assert vectors_are_collinear((1.0, 0.0, 0.0), (-1.0, 0.0, 0.0)) is True
+
+    def test_3d_parallel(self):
+        """Parallel vectors in 3D are collinear."""
+        assert vectors_are_collinear((1.0, 2.0, 3.0), (2.0, 4.0, 6.0)) is True
+
+    def test_3d_anti_parallel(self):
+        """Anti-parallel vectors in 3D are collinear."""
+        assert vectors_are_collinear((1.0, 2.0, 3.0), (-1.0, -2.0, -3.0)) is True
+
+    # Non-collinear vectors
+    def test_perpendicular_not_collinear(self):
+        """Perpendicular vectors are not collinear."""
+        assert vectors_are_collinear((1.0, 0.0, 0.0), (0.0, 1.0, 0.0)) is False
+
+    def test_45_degree_not_collinear(self):
+        """Vectors at 45 degrees are not collinear."""
+        assert vectors_are_collinear((1.0, 0.0, 0.0), (1.0, 1.0, 0.0)) is False
+
+    # Tolerance edge cases
+    def test_within_tolerance(self):
+        """Vectors with very slight angle (within tolerance) are collinear."""
+        # Angle ~0.003 degrees - well within default 0.01 tolerance
+        assert vectors_are_collinear((1.0, 0.0, 0.0), (1.0, 0.00005, 0.0)) is True
+
+    def test_beyond_tolerance(self):
+        """Vectors beyond tolerance are not collinear."""
+        # Use a tight tolerance to demonstrate
+        assert vectors_are_collinear(
+            (1.0, 0.0, 0.0), (1.0, 0.01, 0.0), tolerance_deg=0.001
+        ) is False
+
+    def test_near_anti_parallel_within_tolerance(self):
+        """Nearly anti-parallel vectors (within tolerance) are collinear."""
+        assert vectors_are_collinear((1.0, 0.0, 0.0), (-1.0, 0.00005, 0.0)) is True
+
+    # Defensive: zero-length vectors
+    def test_zero_first_vector_returns_false(self):
+        """Zero-length first vector returns False (not an error)."""
+        assert vectors_are_collinear((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)) is False
+
+    def test_zero_second_vector_returns_false(self):
+        """Zero-length second vector returns False (not an error)."""
+        assert vectors_are_collinear((1.0, 0.0, 0.0), (0.0, 0.0, 0.0)) is False
+
+    def test_both_zero_vectors_returns_false(self):
+        """Both zero-length vectors returns False."""
+        assert vectors_are_collinear((0.0, 0.0, 0.0), (0.0, 0.0, 0.0)) is False
+
+    # Floating point edge cases
+    def test_no_crash_on_near_zero_vector(self):
+        """Near-zero vector doesn't crash."""
+        result = vectors_are_collinear((1e-11, 0.0, 0.0), (1.0, 0.0, 0.0))
+        assert result is False  # Below zero magnitude tolerance

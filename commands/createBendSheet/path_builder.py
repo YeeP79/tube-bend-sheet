@@ -13,6 +13,7 @@ import adsk.fusion
 from ...core import (
     PathElement,
     build_ordered_path,
+    merge_collinear_lines,
     validate_path_alternation,
 )
 
@@ -66,6 +67,9 @@ def build_path_from_geometry(
             success=False,
             error_message=f"Path ordering error: {path_error}",
         )
+
+    # Merge consecutive collinear lines before validation
+    ordered = merge_collinear_lines(ordered)
 
     # Validate alternating line-arc pattern
     is_valid, error_msg = validate_path_alternation(ordered)

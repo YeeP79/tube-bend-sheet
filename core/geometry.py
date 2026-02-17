@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 
 from ..models.types import Vector3D, Point3D
-from .tolerances import CONNECTIVITY_CM, ZERO_MAGNITUDE
+from .tolerances import CONNECTIVITY_CM, ZERO_MAGNITUDE, COLLINEAR_ANGLE_DEG
 
 # Re-export for backward compatibility
 CONNECTIVITY_TOLERANCE_CM: float = CONNECTIVITY_CM
@@ -166,3 +166,27 @@ def points_are_close(p1: Point3D, p2: Point3D,
         True if points are within or equal to tolerance distance
     """
     return distance_between_points(p1, p2) <= tolerance
+
+
+def vectors_are_collinear(
+    v1: Vector3D,
+    v2: Vector3D,
+    tolerance_deg: float = COLLINEAR_ANGLE_DEG,
+) -> bool:
+    """
+    Check if two vectors are collinear (parallel or anti-parallel).
+
+    Args:
+        v1: First vector
+        v2: Second vector
+        tolerance_deg: Maximum angle deviation in degrees (floating point tolerance)
+
+    Returns:
+        True if vectors are within tolerance of being parallel or anti-parallel.
+        Returns False if either vector has zero length.
+    """
+    try:
+        angle = angle_between_vectors(v1, v2)
+    except ZeroVectorError:
+        return False
+    return angle < tolerance_deg or angle > 180.0 - tolerance_deg

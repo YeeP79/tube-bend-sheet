@@ -9,7 +9,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TypeVar
 
-from .geometry import points_are_close
+from ..models.types import Point3D, Vector3D
+from .geometry import points_are_close, vectors_are_collinear
 from .geometry_extraction import PathElementLike
 
 
@@ -102,6 +103,105 @@ def build_ordered_path(
         current = next_elem
 
     return ordered, ""
+
+
+def _find_shared_and_outer_points(
+    ep1: tuple[Point3D, Point3D],
+    ep2: tuple[Point3D, Point3D],
+) -> tuple[Point3D, Point3D, Point3D] | None:
+    """Find the shared endpoint and outer endpoints of two connected elements.
+
+    Args:
+        ep1: Endpoints of first element (start, end)
+        ep2: Endpoints of second element (start, end)
+
+    Returns:
+        Tuple of (shared_point, outer1, outer2) or None if not connected.
+        outer1 is the non-shared endpoint of ep1, outer2 of ep2.
+    """
+    for i, p1 in enumerate(ep1):
+        for j, p2 in enumerate(ep2):
+            if points_are_close(p1, p2):
+                outer1 = ep1[1 - i]
+                outer2 = ep2[1 - j]
+                return p1, outer1, outer2
+    return None
+
+
+def merge_collinear_lines(path: list[_T]) -> list[_T]:
+    """Merge consecutive collinear line elements in an ordered path.
+
+    When two or more consecutive line elements are collinear (same direction),
+    they are merged into a single element whose endpoints span the full range.
+    Non-collinear consecutive lines pass through unchanged.
+
+    Args:
+        path: Ordered list of path elements
+
+    Returns:
+        New list with collinear consecutive lines merged
+    """
+    if len(path) <= 1:
+        return list(path)
+
+    result: list[_T] = []
+    i = 0
+    while i < len(path):
+        current = path[i]
+
+        # Only attempt merge for line elements
+        if current.element_type != 'line':
+            result.append(current)
+            i += 1
+            continue
+
+        # Track the merged span endpoints
+        merged_outer_start: Point3D = current.endpoints[0]
+        merged_outer_end: Point3D = current.endpoints[1]
+        merged_elem: _T = current
+
+        # Look ahead for consecutive collinear lines
+        while i + 1 < len(path) and path[i + 1].element_type == 'line':
+            next_elem = path[i + 1]
+            shared_result = _find_shared_and_outer_points(
+                (merged_outer_start, merged_outer_end),
+                next_elem.endpoints,
+            )
+            if shared_result is None:
+                break
+
+            shared, outer1, outer2 = shared_result
+
+            # Direction vectors: from outer1 toward shared, from shared toward outer2
+            v1: Vector3D = (
+                shared[0] - outer1[0],
+                shared[1] - outer1[1],
+                shared[2] - outer1[2],
+            )
+            v2: Vector3D = (
+                outer2[0] - shared[0],
+                outer2[1] - shared[1],
+                outer2[2] - shared[2],
+            )
+
+            if not vectors_are_collinear(v1, v2):
+                break
+
+            # Merge: update span to cover both elements
+            merged_outer_start = outer1
+            merged_outer_end = outer2
+            i += 1
+
+        # If we merged anything, update the element's endpoints
+        if (merged_outer_start, merged_outer_end) != merged_elem.endpoints:
+            # Mutate endpoints on the element we keep
+            # PathElement and MockPathElement both support direct attribute assignment
+            merged_elem.endpoints = (merged_outer_start, merged_outer_end)  # type: ignore[attr-defined]
+
+        result.append(merged_elem)
+        i += 1
+
+    return result
 
 
 def validate_path_alternation(path: Sequence[PathElementLike]) -> tuple[bool, str]:
