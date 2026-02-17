@@ -4,15 +4,24 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import TypedDict
 
 from ..models.bender import (
     Bender,
+    BenderDict,
     Die,
     validate_bender_values,
     validate_die_values,
 )
+from ..models.constants import DIE_CLR_MATCH_DEFAULT
 from .json_store import JsonFileStore
+
+
+class _ProfileFileData(TypedDict):
+    """Schema for the benders.json file."""
+
+    version: str
+    benders: list[BenderDict]
 
 
 class ProfileSaveError(IOError):
@@ -142,12 +151,21 @@ class ProfileManager(JsonFileStore):
         except OSError as e:
             raise ProfileSaveError(f"Failed to save bender profiles: {e}") from e
 
-    def _get_save_data(self) -> dict[str, Any]:
+    def _get_save_data(self) -> _ProfileFileData:
         """Return the JSON-serializable dict for bender profiles."""
         return {
             'version': self.CURRENT_VERSION,
             'benders': [b.to_dict() for b in self._benders],
         }
+
+    def _get_existing_ids(self) -> set[str]:
+        """Return all bender and die IDs currently in use."""
+        ids: set[str] = set()
+        for bender in self._benders:
+            ids.add(bender.id)
+            for die in bender.dies:
+                ids.add(die.id)
+        return ids
 
     def _create_default_profiles(self) -> None:
         """Create default bender profiles.
@@ -364,7 +382,7 @@ class ProfileManager(JsonFileStore):
         return False
 
     def find_die_for_clr(self, clr: float, bender_id: str | None = None,
-                         tolerance: float = 0.01) -> tuple[Bender, Die] | None:
+                         tolerance: float = DIE_CLR_MATCH_DEFAULT) -> tuple[Bender, Die] | None:
         """
         Find a die that matches the given CLR.
 

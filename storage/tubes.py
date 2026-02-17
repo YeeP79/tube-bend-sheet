@@ -4,15 +4,25 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import TypedDict
 
-from ..models.tube import Tube, validate_tube_values
+from ..models.tube import Tube, TubeDict, validate_tube_values
 from ..models.compensation import (
     DieMaterialCompensation,
+    DieMaterialCompensationDict,
     validate_compensation_values,
 )
+from ..core.tolerances import TUBE_OD_MATCH_CM
 from ..lib import fusionAddInUtils as futil
 from .json_store import JsonFileStore
+
+
+class _TubeFileData(TypedDict):
+    """Schema for the tubes.json file."""
+
+    version: str
+    tubes: list[TubeDict]
+    compensation_data: list[DieMaterialCompensationDict]
 
 
 class TubeSaveError(IOError):
@@ -173,13 +183,20 @@ class TubeManager(JsonFileStore):
         except OSError as e:
             raise TubeSaveError(f"Failed to save tubes: {e}") from e
 
-    def _get_save_data(self) -> dict[str, Any]:
+    def _get_save_data(self) -> _TubeFileData:
         """Return the JSON-serializable dict for tubes and compensation."""
         return {
             'version': self.CURRENT_VERSION,
             'tubes': [t.to_dict() for t in self._tubes],
             'compensation_data': [c.to_dict() for c in self._compensation_data],
         }
+
+    def _get_existing_ids(self) -> set[str]:
+        """Return all tube IDs currently in use."""
+        ids: set[str] = set()
+        for tube in self._tubes:
+            ids.add(tube.id)
+        return ids
 
     # -------------------------------------------------------------------------
     # Tube CRUD Operations
@@ -200,7 +217,7 @@ class TubeManager(JsonFileStore):
         return None
 
     def get_tubes_by_tube_od(
-        self, tube_od: float, tolerance: float = 0.01
+        self, tube_od: float, tolerance: float = TUBE_OD_MATCH_CM
     ) -> list[Tube]:
         """
         Get all tubes that match a given tube OD.

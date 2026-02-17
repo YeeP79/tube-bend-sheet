@@ -8,30 +8,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Protocol, TypeAlias
+from typing import TYPE_CHECKING, TypeAlias
 
 from ..models.types import Point3D, ElementType
 from .geometry import points_are_close
+from .protocols import PathElementLike
 
 if TYPE_CHECKING:
     import adsk.fusion
 
     # Type alias for sketch entities we work with
     SketchEntity: TypeAlias = adsk.fusion.SketchLine | adsk.fusion.SketchArc
-
-
-class PathElementLike(Protocol):
-    """Protocol for objects that behave like PathElement.
-
-    This enables testing with mock objects that have the same structure
-    as PathElement but without Fusion API dependencies.
-    """
-
-    @property
-    def element_type(self) -> ElementType: ...
-
-    @property
-    def endpoints(self) -> tuple[Point3D, Point3D]: ...
 
 
 def get_sketch_entity_endpoints(

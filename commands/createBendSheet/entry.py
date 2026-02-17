@@ -164,6 +164,10 @@ def command_created(args: adsk.core.CommandCreatedEventArgs) -> None:
     if _tube_manager:
         _tube_manager.reload()
 
+    if not _profile_manager or not _tube_manager:
+        ui.messageBox('Add-in not fully initialized. Please restart Fusion 360.', 'Error')
+        return
+
     cmd = args.command
 
     design = adsk.fusion.Design.cast(app.activeProduct)
@@ -179,7 +183,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs) -> None:
 
     # Validate selection
     validator = SelectionValidator(units)
-    result = validator.validate_for_dialog(ui.activeSelections)
+    result = validator.validate(ui.activeSelections)
 
     if not result.is_valid:
         ui.messageBox(result.error_message or 'Invalid selection', 'Create Bend Sheet')
@@ -321,7 +325,7 @@ def command_execute(args: adsk.core.CommandEventArgs) -> None:
 
         # Validate and analyze selection
         validator = SelectionValidator(units)
-        selection_result = validator.validate_for_execution(ui.activeSelections)
+        selection_result = validator.validate(ui.activeSelections)
 
         if not selection_result.is_valid:
             ui.messageBox(selection_result.error_message or 'Invalid selection', 'Error')

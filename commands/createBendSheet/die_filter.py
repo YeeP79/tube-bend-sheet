@@ -35,7 +35,10 @@ class DieFilter:
         self._profile_manager = profile_manager
 
     def get_bender_by_name(self, name: str) -> Bender | None:
-        """Get bender by name, refreshing from disk first.
+        """Get bender by name.
+
+        Data is reloaded at command_created via profile_manager.reload(),
+        so no explicit load() call is needed here.
 
         Args:
             name: Name of the bender to find
@@ -46,7 +49,6 @@ class DieFilter:
         if not self._profile_manager:
             return None
 
-        self._profile_manager.load()
         return self._profile_manager.get_bender_by_name(name)
 
     def get_die_by_name(self, bender_name: str, die_name: str) -> Die | None:

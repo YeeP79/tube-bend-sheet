@@ -91,6 +91,26 @@ class TestTubeValidation:
         tube = Tube(id="1", name="Test", tube_od=4.445, wall_thickness=0.3048)
         assert tube.wall_thickness == 0.3048
 
+    def test_wall_thickness_equal_half_od_raises(self):
+        """Wall thickness equal to half tube_od should raise ValueError."""
+        with pytest.raises(ValueError, match="wall_thickness.*must be less than half"):
+            Tube(id="1", name="Test", tube_od=4.0, wall_thickness=2.0)
+
+    def test_wall_thickness_greater_than_half_od_raises(self):
+        """Wall thickness greater than half tube_od should raise ValueError."""
+        with pytest.raises(ValueError, match="wall_thickness.*must be less than half"):
+            Tube(id="1", name="Test", tube_od=4.0, wall_thickness=3.0)
+
+    def test_wall_thickness_just_under_half_od_valid(self):
+        """Wall thickness just under half tube_od should be valid."""
+        tube = Tube(id="1", name="Test", tube_od=4.0, wall_thickness=1.999)
+        assert tube.wall_thickness == 1.999
+
+    def test_wall_thickness_zero_skips_relational_check(self):
+        """Zero wall_thickness should skip relational validation."""
+        tube = Tube(id="1", name="Test", tube_od=0.001, wall_thickness=0.0)
+        assert tube.wall_thickness == 0.0
+
     def test_validate_tube_values_none_is_valid(self):
         """validate_tube_values with None values should not raise."""
         validate_tube_values(tube_od=None, wall_thickness=None)  # Should not raise
@@ -252,6 +272,21 @@ class TestTubeSerialization:
         }
         tube = Tube.from_dict(data)  # type: ignore[arg-type]
         assert tube.wall_thickness == 0.0
+
+    def test_from_dict_clamps_wall_thickness_exceeding_half_od(self):
+        """from_dict clamps wall_thickness >= tube_od/2 to valid range."""
+        data = {
+            "id": "1",
+            "name": "Bad Tube",
+            "tube_od": 4.0,
+            "wall_thickness": 3.0,
+            "material_type": "",
+            "batch": "",
+            "notes": ""
+        }
+        tube = Tube.from_dict(data)  # type: ignore[arg-type]
+        assert tube.wall_thickness < 4.0 / 2
+        assert tube.wall_thickness == pytest.approx(4.0 / 2 - 0.001)
 
     def test_roundtrip(self):
         """to_dict -> from_dict preserves all values."""

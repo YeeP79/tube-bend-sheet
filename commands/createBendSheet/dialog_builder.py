@@ -14,6 +14,7 @@ from ...models import UnitConfig
 from ...storage import ProfileManager
 from ...storage.attributes import TubeSettings
 from ...core import format_length
+from ...core.tolerances import TUBE_OD_MATCH_CM
 from .dialog_state import DialogState
 from .die_filter import DieFilter
 
@@ -172,7 +173,7 @@ class BendSheetDialogBuilder:
         if self._tube_manager and selected_die_tube_od is not None:
             # Filter tubes by matching tube OD
             matching_tubes = self._tube_manager.get_tubes_by_tube_od(
-                selected_die_tube_od, tolerance=0.01
+                selected_die_tube_od, tolerance=TUBE_OD_MATCH_CM
             )
             for i, tube in enumerate(matching_tubes):
                 display_name = tube.name

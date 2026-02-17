@@ -6,8 +6,8 @@ import json
 import threading
 import uuid
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
 
 
 class JsonFileStore(ABC):
@@ -16,7 +16,7 @@ class JsonFileStore(ABC):
     Provides:
     - Thread-safe lazy loading with a lock
     - Atomic write (temp file + rename) to prevent corruption
-    - UUID-based ID generation
+    - UUID-based ID generation with collision check
     - Reload support for picking up external changes
     """
 
@@ -31,7 +31,7 @@ class JsonFileStore(ABC):
         self._resources_path = resources_path
         self._file_path = resources_path / filename
         self._loaded = False
-        self._load_lock = threading.Lock()
+        self._load_lock = threading.RLock()
 
     def _ensure_loaded(self) -> None:
         """Thread-safe lazy load — call from property accessors."""
@@ -45,12 +45,20 @@ class JsonFileStore(ABC):
         ...
 
     @abstractmethod
-    def _get_save_data(self) -> dict[str, Any]:
+    def _get_save_data(self) -> Mapping[str, object]:
         """Return the JSON-serializable dict to write to disk."""
+        ...
+
+    @abstractmethod
+    def _get_existing_ids(self) -> set[str]:
+        """Return all IDs currently in use."""
         ...
 
     def save(self) -> None:
         """Save data to disk using atomic write pattern.
+
+        Thread-safe: acquires _load_lock to prevent interleaved
+        read-modify-write cycles with concurrent load/reload.
 
         Writes to a temporary file first, then atomically renames to target.
         This prevents data corruption from interrupted writes.
@@ -59,34 +67,48 @@ class JsonFileStore(ABC):
             OSError: If file cannot be written (subclass should wrap in
                      domain-specific error before propagation)
         """
-        temp_path = self._file_path.with_suffix('.tmp')
+        with self._load_lock:
+            temp_path = self._file_path.with_suffix('.tmp')
 
-        try:
-            self._resources_path.mkdir(parents=True, exist_ok=True)
+            try:
+                self._resources_path.mkdir(parents=True, exist_ok=True)
 
-            data = self._get_save_data()
+                data = self._get_save_data()
 
-            with open(temp_path, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2)
+                with open(temp_path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2)
 
-            temp_path.replace(self._file_path)
+                temp_path.replace(self._file_path)
 
-        except (OSError, TypeError) as e:
-            if temp_path.exists():
-                try:
-                    temp_path.unlink()
-                except OSError:
-                    pass  # Best effort cleanup
-            raise OSError(f"Failed to save {self._file_path.name}: {e}") from e
+            except (OSError, TypeError) as e:
+                if temp_path.exists():
+                    try:
+                        temp_path.unlink()
+                    except OSError:
+                        pass  # Best effort cleanup
+                raise OSError(f"Failed to save {self._file_path.name}: {e}") from e
 
     def reload(self) -> None:
         """Force reload data from disk.
 
+        Thread-safe: acquires _load_lock to prevent concurrent
+        load/save operations from interleaving.
+
         Use this when the file may have been modified externally.
         """
-        self._loaded = False
-        self.load()
+        with self._load_lock:
+            self._loaded = False
+            self.load()
 
     def _generate_id(self) -> str:
-        """Generate a unique 8-character ID."""
-        return str(uuid.uuid4())[:8]
+        """Generate a unique 8-character ID.
+
+        Checks against existing IDs to prevent collisions from truncation.
+        """
+        existing = self._get_existing_ids()
+        for _ in range(10):
+            candidate = str(uuid.uuid4())[:8]
+            if candidate not in existing:
+                return candidate
+        # Fallback: full UUID (effectively impossible to reach)
+        return str(uuid.uuid4())

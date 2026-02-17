@@ -25,7 +25,13 @@ sys.path.insert(0, str(project_root))
 # This allows tests to use simple imports like `from core.x import y`
 # while the production code uses relative imports for Fusion 360 compatibility
 import TubeBendSheet.core as core
+import TubeBendSheet.core.compensation as _core_compensation
+import TubeBendSheet.core.tolerances as _core_tolerances
+import TubeBendSheet.core.protocols as _core_protocols
 import TubeBendSheet.models as models
+import TubeBendSheet.models.tube as _models_tube
+import TubeBendSheet.models.compensation as _models_compensation
+import TubeBendSheet.models.constants as _models_constants
 import TubeBendSheet.storage as storage
 
 sys.modules['core'] = core
@@ -41,11 +47,17 @@ sys.modules['core.formatting'] = core.formatting
 sys.modules['core.html_generator'] = core.html_generator
 sys.modules['core.grip_tail'] = core.grip_tail
 sys.modules['core.direction_validation'] = core.direction_validation
+sys.modules['core.compensation'] = _core_compensation
+sys.modules['core.tolerances'] = _core_tolerances
+sys.modules['core.protocols'] = _core_protocols
 
 sys.modules['models.bender'] = models.bender
 sys.modules['models.bend_data'] = models.bend_data
 sys.modules['models.types'] = models.types
 sys.modules['models.units'] = models.units
+sys.modules['models.tube'] = _models_tube
+sys.modules['models.compensation'] = _models_compensation
+sys.modules['models.constants'] = _models_constants
 
 sys.modules['storage.profiles'] = storage.profiles
 

@@ -49,6 +49,12 @@ def validate_tube_values(
         raise ValueError(f"tube_od must be positive, got {tube_od}")
     if wall_thickness is not None and wall_thickness < 0:
         raise ValueError(f"wall_thickness must be non-negative, got {wall_thickness}")
+    if tube_od is not None and wall_thickness is not None:
+        if wall_thickness > 0 and wall_thickness >= tube_od / 2:
+            raise ValueError(
+                f"wall_thickness ({wall_thickness}) must be less than half "
+                f"of tube_od ({tube_od})"
+            )
 
 
 @dataclass(slots=True)
@@ -110,8 +116,10 @@ class Tube:
         """
         # Clamp tube_od to valid range
         tube_od = max(0.001, data['tube_od'])
-        # Clamp wall_thickness to non-negative
+        # Clamp wall_thickness to non-negative and less than half tube_od
         wall_thickness = max(0.0, data.get('wall_thickness', 0.0))
+        if wall_thickness > 0 and wall_thickness >= tube_od / 2:
+            wall_thickness = tube_od / 2 - 0.001
 
         return cls(
             id=data['id'],

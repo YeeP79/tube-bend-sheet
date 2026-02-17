@@ -17,6 +17,9 @@ class StraightSection:
     end: Point3D
     vector: Vector3D  # In internal units (cm) for calculations
 
+    def __repr__(self) -> str:
+        return f"StraightSection(#{self.number}, len={self.length:.2f})"
+
 
 @dataclass(slots=True)
 class BendData:
@@ -43,6 +46,9 @@ class PathSegment:
     bend_angle: float | None
     rotation: float | None
 
+    def __repr__(self) -> str:
+        return f"PathSegment({self.segment_type}, {self.name}, len={self.length:.2f})"
+
 
 @dataclass(slots=True)
 class MarkPosition:
@@ -52,6 +58,10 @@ class MarkPosition:
     bend_angle: float
     rotation: float | None
     compensated_angle: float | None = None  # What bender readout should show
+
+    def __repr__(self) -> str:
+        comp = f", comp={self.compensated_angle:.1f}" if self.compensated_angle is not None else ""
+        return f"MarkPosition(#{self.bend_num}, angle={self.bend_angle:.1f}{comp})"
 
 
 # ---------------------------------------------------------------------------

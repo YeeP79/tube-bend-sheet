@@ -23,11 +23,16 @@ CLR_MIN_FLOOR: float = 0.001
 
 # Default tolerance for die CLR matching (in display units)
 # Used when comparing detected CLR against die specifications
-DIE_CLR_MATCH_DEFAULT: float = 0.01
+# Re-exported from models.constants (single source of truth)
+from ..models.constants import DIE_CLR_MATCH_DEFAULT as DIE_CLR_MATCH_DEFAULT
 
 # CLR match tolerance for dropdown display (in display units)
 # More lenient tolerance for showing checkmark in die dropdown
 CLR_MATCH_DISPLAY: float = 0.1
+
+# Tube OD matching tolerance (in cm, Fusion internal units)
+# Used to find tubes/dies with matching outer diameters
+TUBE_OD_MATCH_CM: float = 0.01
 
 # Collinearity angle tolerance (in degrees)
 # Lines within this angle are considered truly collinear (floating point tolerance only)

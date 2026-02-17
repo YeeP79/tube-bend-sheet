@@ -69,11 +69,11 @@ class SelectionValidator:
         """
         self._units = units
 
-    def validate_for_dialog(
+    def validate(
         self,
         selections: adsk.core.Selections,
     ) -> SelectionResult:
-        """Validate selection and extract geometry for dialog creation.
+        """Validate selection and extract geometry.
 
         Orchestrates the complete validation workflow:
         1. Check minimum selection count
@@ -119,7 +119,15 @@ class SelectionValidator:
             )
 
         # Guard: path_result.ordered_path is guaranteed non-None when success=True
-        assert path_result.ordered_path is not None
+        if path_result.ordered_path is None:
+            return SelectionResult(
+                is_valid=False,
+                error_message="Internal error: path ordering succeeded but returned no path",
+                lines=geometry.lines,
+                arcs=geometry.arcs,
+                first_entity=geometry.first_entity,
+                detected_clr=detected_clr,
+            )
 
         # 4. Normalize path direction for consistent UI
         direction = normalize_path_direction(
@@ -145,19 +153,3 @@ class SelectionValidator:
             opposite_direction=direction.opposite_direction,
         )
 
-    def validate_for_execution(
-        self,
-        selections: adsk.core.Selections,
-    ) -> SelectionResult:
-        """Validate for command execution.
-
-        This is equivalent to validate_for_dialog() since that method
-        performs all necessary validation and geometry extraction.
-
-        Args:
-            selections: Active selections from the UI
-
-        Returns:
-            SelectionResult with full validation and geometry data
-        """
-        return self.validate_for_dialog(selections)

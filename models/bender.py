@@ -6,10 +6,7 @@ import math
 from dataclasses import dataclass, field
 from typing import TypedDict
 
-# Default tolerance for die CLR matching (in display units).
-# Duplicated from core/tolerances.py to avoid circular import
-# (models → core → models).
-_DIE_CLR_MATCH_DEFAULT: float = 0.01
+from .constants import DIE_CLR_MATCH_DEFAULT as _DIE_CLR_MATCH_DEFAULT
 
 
 class DieDict(TypedDict):

@@ -14,7 +14,7 @@ from collections.abc import Callable
 from typing import Protocol, runtime_checkable
 
 import adsk.core
-from .general_utils import handle_error
+from .general_utils import handle_error, log
 
 __all__ = ['add_handler', 'clear_handlers', 'FusionHandler']
 
@@ -39,7 +39,7 @@ _handlers: list[FusionHandler] = []
 
 def add_handler(
         event: adsk.core.Event,
-        callback: Callable,
+        callback: Callable[..., None],
         *,
         name: str | None = None,
         local_handlers: list[FusionHandler] | None = None
@@ -79,7 +79,7 @@ def clear_handlers():
 
 def _create_handler(
         handler_type: type,
-        callback: Callable,
+        callback: Callable[..., None],
         event: adsk.core.Event,
         name: str | None = None,
         local_handlers: list[FusionHandler] | None = None
@@ -88,18 +88,23 @@ def _create_handler(
     handler_list = local_handlers if local_handlers is not None else _handlers
     initial_count = len(handler_list)
     handler_list.append(handler)
-    assert len(handler_list) == initial_count + 1, "Handler not added to list"
+    if len(handler_list) != initial_count + 1:
+        log(f"Warning: Handler not added to list (expected {initial_count + 1}, got {len(handler_list)})")
     return handler
 
 
-def _define_handler(handler_type, callback, name: str | None = None):
+def _define_handler(
+    handler_type: type,
+    callback: Callable[..., None],
+    name: str | None = None,
+) -> type:
     handler_name: str = name or handler_type.__name__
 
     class Handler(handler_type):
-        def __init__(self):
+        def __init__(self) -> None:
             super().__init__()
 
-        def notify(self, args):
+        def notify(self, args: adsk.core.EventArgs) -> None:
             try:
                 callback(args)
             except:

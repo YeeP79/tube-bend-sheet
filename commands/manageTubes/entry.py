@@ -17,6 +17,7 @@ from ...storage import ProfileManager
 from ...storage.tubes import TubeManager
 from ...models import UnitConfig
 from ...models.tube import Tube
+from ...core.tolerances import TUBE_OD_MATCH_CM
 from .html_bridge import HTMLBridge
 from .input_dialogs import (
     TubeInput,
@@ -315,7 +316,7 @@ def _handle_manage_compensation(tube_id: str) -> None:
     compatible_dies: list[tuple[str, str, str]] = []  # (bender_name, die_id, die_name)
     for bender in _profile_manager.benders:
         for die in bender.dies:
-            if abs(die.tube_od - tube.tube_od) < 0.01:  # 0.01cm tolerance
+            if abs(die.tube_od - tube.tube_od) < TUBE_OD_MATCH_CM:
                 compatible_dies.append((bender.name, die.id, die.name))
 
     if not compatible_dies:

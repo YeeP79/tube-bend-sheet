@@ -4,30 +4,10 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from ..models.types import Vector3D, Point3D
-
-
-class ArcLike(Protocol):
-    """Protocol for objects with a radius property.
-
-    This enables testing with mock objects that have a radius attribute
-    but without Fusion API dependencies.
-    """
-
-    @property
-    def radius(self) -> float: ...
-
-
-class UnitConfigLike(Protocol):
-    """Protocol for objects with unit conversion properties.
-
-    This enables testing with mock objects without importing the full UnitConfig.
-    """
-
-    @property
-    def cm_to_unit(self) -> float: ...
+from .protocols import ArcLike, UnitConfigLike
 from .geometry import (
     cross_product,
     magnitude,

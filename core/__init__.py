@@ -10,9 +10,13 @@ from .geometry import (
     points_are_close,
     vectors_are_collinear,
 )
+from .protocols import (
+    ArcLike,
+    UnitConfigLike,
+    PathElementLike,
+)
 from .geometry_extraction import (
     PathElement,
-    PathElementLike,
     get_sketch_entity_endpoints,
     get_component_name,
     get_free_endpoint,
@@ -51,6 +55,7 @@ from .tolerances import (
     CLR_MIN_FLOOR,
     DIE_CLR_MATCH_DEFAULT,
     CLR_MATCH_DISPLAY,
+    TUBE_OD_MATCH_CM,
     COLLINEAR_ANGLE_DEG,
 )
 
@@ -64,9 +69,12 @@ __all__ = [
     'distance_between_points',
     'points_are_close',
     'vectors_are_collinear',
+    # Protocols
+    'ArcLike',
+    'UnitConfigLike',
+    'PathElementLike',
     # Path analysis
     'PathElement',
-    'PathElementLike',
     'get_sketch_entity_endpoints',
     'get_component_name',
     'build_ordered_path',
@@ -99,5 +107,6 @@ __all__ = [
     'CLR_MIN_FLOOR',
     'DIE_CLR_MATCH_DEFAULT',
     'CLR_MATCH_DISPLAY',
+    'TUBE_OD_MATCH_CM',
     'COLLINEAR_ANGLE_DEG',
 ]

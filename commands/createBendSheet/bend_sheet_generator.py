@@ -31,6 +31,8 @@ from ...models import (
 
 if TYPE_CHECKING:
     from ...core import PathElement
+    from ...core.grip_tail import MaterialCalculation
+    from ...models import StraightSection, BendData, MarkPosition, PathSegment
     from .input_parser import BendSheetParams
     from ...storage.tubes import TubeManager
 
@@ -181,38 +183,93 @@ class BendSheetGenerator:
         )
 
         # Apply bender compensation if enabled
-        compensation_warnings: list[str] = []
-        if (
+        compensation_warnings = self._apply_compensation(mark_positions, params)
+
+        # Calculate totals and build sheet data
+        total_centerline, total_cut_length, tail_cut_position = (
+            self._calculate_totals(straights, bends, material)
+        )
+
+        sheet_data = self._build_sheet_data(
+            params=params,
+            component_name=component_name,
+            clr=clr,
+            clr_mismatch=clr_mismatch,
+            clr_values=clr_values,
+            straights=straights,
+            bends=bends,
+            segments=segments,
+            mark_positions=mark_positions,
+            total_centerline=total_centerline,
+            total_cut_length=total_cut_length,
+            travel_direction=travel_direction,
+            starts_with_arc=starts_with_arc,
+            ends_with_arc=ends_with_arc,
+            material=material,
+            tail_cut_position=tail_cut_position,
+            spring_back_warning=spring_back_warning,
+            compensation_warnings=compensation_warnings,
+        )
+
+        return GenerationResult(success=True, data=sheet_data)
+
+    def _apply_compensation(
+        self,
+        mark_positions: list["MarkPosition"],
+        params: "BendSheetParams",
+    ) -> list[str]:
+        """Apply bender compensation to mark positions.
+
+        Args:
+            mark_positions: Mark positions to update with compensated angles
+            params: Parameters containing compensation settings
+
+        Returns:
+            List of unique compensation warnings
+        """
+        warnings: list[str] = []
+        if not (
             params.apply_compensation
             and params.tube_id
             and params.die_id
             and self._tube_manager
         ):
-            compensation_data = self._tube_manager.get_compensation(
-                params.die_id, params.tube_id
-            )
-            if compensation_data and compensation_data.data_points:
-                for mark in mark_positions:
-                    result = calculate_compensated_angle(
-                        mark.bend_angle, compensation_data.data_points
-                    )
-                    mark.compensated_angle = result.compensated_angle
-                    if result.warning:
-                        # Collect unique warnings
-                        if result.warning not in compensation_warnings:
-                            compensation_warnings.append(result.warning)
+            return warnings
 
-        # Calculate totals
+        compensation_data = self._tube_manager.get_compensation(
+            params.die_id, params.tube_id
+        )
+        if compensation_data and compensation_data.data_points:
+            for mark in mark_positions:
+                result = calculate_compensated_angle(
+                    mark.bend_angle, compensation_data.data_points
+                )
+                mark.compensated_angle = result.compensated_angle
+                if result.warning and result.warning not in warnings:
+                    warnings.append(result.warning)
+
+        return warnings
+
+    def _calculate_totals(
+        self,
+        straights: list["StraightSection"],
+        bends: list["BendData"],
+        material: "MaterialCalculation",
+    ) -> tuple[float, float, float | None]:
+        """Calculate centerline length, cut length, and tail cut position.
+
+        Args:
+            straights: Straight sections of the path
+            bends: Bend data for the path
+            material: Material calculation results
+
+        Returns:
+            Tuple of (total_centerline, total_cut_length, tail_cut_position)
+        """
         total_straights: float = sum(s.length for s in straights)
         total_arcs: float = sum(b.arc_length for b in bends)
         total_centerline: float = total_straights + total_arcs
 
-        # Calculate total cut length:
-        # - Base centerline length
-        # - Grip extension at start (extra_material) if needed
-        # - Tail extension at end (extra_tail_material) if last straight < min_tail
-        # - Synthetic tail material if path ends with arc
-        # - Effective allowances at each end (may be 0 if extensions were added)
         total_cut_length: float = (
             total_centerline
             + material.extra_material
@@ -222,9 +279,7 @@ class BendSheetGenerator:
             + material.effective_end_allowance
         )
 
-        # Calculate tail cut position for post-bend trimming
-        # Cut position is at the end of original centerline + grip extension + start allowance
-        # (any tail extension material and end allowance are beyond this point, to be trimmed)
+        # Tail cut position for post-bend trimming
         tail_cut_position: float | None = None
         if material.has_synthetic_tail or material.has_tail_extension:
             tail_cut_position = (
@@ -233,7 +288,55 @@ class BendSheetGenerator:
                 + material.effective_start_allowance
             )
 
-        # Build sheet data from focused sub-groups
+        return total_centerline, total_cut_length, tail_cut_position
+
+    def _build_sheet_data(
+        self,
+        *,
+        params: "BendSheetParams",
+        component_name: str,
+        clr: float,
+        clr_mismatch: bool,
+        clr_values: list[float],
+        straights: list["StraightSection"],
+        bends: list["BendData"],
+        segments: list["PathSegment"],
+        mark_positions: list["MarkPosition"],
+        total_centerline: float,
+        total_cut_length: float,
+        travel_direction: str,
+        starts_with_arc: bool,
+        ends_with_arc: bool,
+        material: "MaterialCalculation",
+        tail_cut_position: float | None,
+        spring_back_warning: bool,
+        compensation_warnings: list[str],
+    ) -> BendSheetData:
+        """Construct BendSheetData from sub-groups.
+
+        Args:
+            params: Parsed input parameters
+            component_name: Name of the component
+            clr: Center line radius
+            clr_mismatch: Whether CLR values are inconsistent
+            clr_values: List of all CLR values found
+            straights: Straight sections
+            bends: Bend data
+            segments: Path segments for table
+            mark_positions: Mark positions for bender
+            total_centerline: Total centerline length
+            total_cut_length: Total cut length including extensions
+            travel_direction: Direction of travel label
+            starts_with_arc: Whether path starts with arc
+            ends_with_arc: Whether path ends with arc
+            material: Material calculation results
+            tail_cut_position: Position to cut tail (or None)
+            spring_back_warning: Whether spring back warning applies
+            compensation_warnings: List of compensation warnings
+
+        Returns:
+            Complete BendSheetData
+        """
         tooling = ToolingInfo(
             component_name=component_name,
             bender_name=params.bender_name,
@@ -287,8 +390,6 @@ class BendSheetGenerator:
             spring_back_warning=spring_back_warning,
             compensation_warnings=compensation_warnings,
         )
-        sheet_data = BendSheetData.from_groups(
+        return BendSheetData.from_groups(
             tooling, geometry, path_data, material_info, sheet_warnings,
         )
-
-        return GenerationResult(success=True, data=sheet_data)

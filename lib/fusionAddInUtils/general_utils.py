@@ -21,7 +21,7 @@ ui = app.userInterface
 try:
     from ... import config
     DEBUG = config.DEBUG
-except:
+except (ImportError, AttributeError):
     DEBUG = False
 
 

@@ -12,7 +12,7 @@ from typing import TypeVar
 
 from ..models.types import Point3D, Vector3D
 from .geometry import points_are_close, vectors_are_collinear
-from .geometry_extraction import PathElementLike
+from .protocols import PathElementLike
 
 
 # Type variable for preserving element types through functions

@@ -1,0 +1,15 @@
+{
+  "version": "1.1",
+  "tubes": [
+    {
+      "id": "a08c23b8",
+      "name": "1.75\" OD x .120 wall DOM",
+      "tube_od": 4.445,
+      "wall_thickness": 0.0,
+      "material_type": "",
+      "batch": "",
+      "notes": ""
+    }
+  ],
+  "compensation_data": []
+}
