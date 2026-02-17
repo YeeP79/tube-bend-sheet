@@ -100,7 +100,9 @@ class BendSheetData:
     effective_end_allowance: float = 0.0  # Allowance at end (0 if tail extended)
     # Spring back warning
     spring_back_warning: bool = False  # True when tail extended but no end allowance
-    # Compensation fields
-    material_name: str = ""  # Material used for compensation (if any)
+    # Tube/compensation fields
+    tube_name: str = ""  # Tube used for compensation (if any)
+    wall_thickness: float = 0.0  # Wall thickness from tube profile
+    material_type: str = ""  # Material type from tube profile (e.g., "DOM")
     apply_compensation: bool = False  # Whether compensation was applied
     compensation_warnings: list[str] = field(default_factory=list)  # Extrapolation warnings

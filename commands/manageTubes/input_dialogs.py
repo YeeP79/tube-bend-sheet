@@ -1,6 +1,6 @@
-"""Input dialog helpers for material management.
+"""Input dialog helpers for tube management.
 
-This module provides reusable functions for collecting material
+This module provides reusable functions for collecting tube
 data from the user via Fusion's input dialogs.
 """
 
@@ -14,11 +14,13 @@ from ...models import UnitConfig
 
 
 @dataclass(slots=True)
-class MaterialInput:
-    """Data collected from material input dialogs."""
+class TubeInput:
+    """Data collected from tube input dialogs."""
 
     name: str
     tube_od: float  # In internal units (cm)
+    wall_thickness: float = 0.0  # In internal units (cm)
+    material_type: str = ""
     batch: str = ""
     notes: str = ""
 
@@ -92,16 +94,16 @@ def _get_angle_input(
         return 0.0, True
 
 
-def get_material_input(
+def get_tube_input(
     ui: adsk.core.UserInterface,
     units: UnitConfig,
-    current_name: str = "New Material",
+    current_name: str = "New Tube",
     current_tube_od: float | None = None,
     current_batch: str = "",
     current_notes: str = "",
-) -> MaterialInput | None:
+) -> TubeInput | None:
     """
-    Show input dialogs to collect material data.
+    Show input dialogs to collect tube data.
 
     Args:
         ui: Fusion UserInterface
@@ -112,12 +114,12 @@ def get_material_input(
         current_notes: Current notes (for editing)
 
     Returns:
-        MaterialInput with collected data, or None if cancelled
+        TubeInput with collected data, or None if cancelled
     """
-    # Get material name
+    # Get tube name
     ret_value, cancelled = ui.inputBox(
-        "Enter material name (e.g., 'DOM 1020', '4130 Chromoly'):",
-        "Material Name",
+        "Enter tube name (e.g., 'DOM 1020 1.75x0.120'):",
+        "Tube Name",
         current_name,
     )
     if cancelled or not ret_value.strip():
@@ -150,7 +152,7 @@ def get_material_input(
         return None
     batch = ret_value.strip()
 
-    return MaterialInput(name=name, tube_od=tube_od, batch=batch, notes=current_notes)
+    return TubeInput(name=name, tube_od=tube_od, batch=batch, notes=current_notes)
 
 
 def get_compensation_point_input(
@@ -218,7 +220,7 @@ def confirm_delete(
 
     Args:
         ui: Fusion UserInterface
-        item_type: Type of item being deleted (e.g., "material", "compensation data")
+        item_type: Type of item being deleted (e.g., "tube", "compensation data")
         item_name: Name of item being deleted
         include_children: Whether to mention child items in message
         custom_message: Optional custom message to display instead of default
@@ -245,7 +247,7 @@ def confirm_delete(
 def confirm_clear_compensation(
     ui: adsk.core.UserInterface,
     die_name: str,
-    material_name: str,
+    tube_name: str,
 ) -> bool:
     """
     Show a confirmation dialog for clearing all compensation data.
@@ -253,7 +255,7 @@ def confirm_clear_compensation(
     Args:
         ui: Fusion UserInterface
         die_name: Name of the die
-        material_name: Name of the material
+        tube_name: Name of the tube
 
     Returns:
         True if user confirmed, False otherwise
@@ -261,7 +263,7 @@ def confirm_clear_compensation(
     message = (
         f"Clear all compensation data for:\n"
         f"  Die: {die_name}\n"
-        f"  Material: {material_name}\n\n"
+        f"  Tube: {tube_name}\n\n"
         f"This will remove all recorded bend measurements.\n\n"
         f"You should do this if you've recalibrated your bender's "
         f"angle readout, as previous data is no longer valid.\n\n"

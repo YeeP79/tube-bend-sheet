@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Manage Materials</title>
+    <title>Manage Tubes</title>
     <style>
         :root {
             --bg-primary: #3c3c3c;
@@ -93,17 +93,17 @@
             font-size: 11px;
         }
 
-        /* Material items */
-        .material-list {
+        /* Tube items */
+        .tube-list {
             margin-left: 16px;
             display: none;
         }
 
-        .od-group.expanded .material-list {
+        .od-group.expanded .tube-list {
             display: block;
         }
 
-        .material-item {
+        .tube-item {
             display: flex;
             align-items: center;
             padding: 6px 8px;
@@ -116,11 +116,11 @@
             gap: 4px;
         }
 
-        .material-item:hover {
+        .tube-item:hover {
             background: var(--bg-hover);
         }
 
-        .material-name {
+        .tube-name {
             flex: 1;
             font-weight: 600;
             white-space: nowrap;
@@ -128,7 +128,7 @@
             text-overflow: ellipsis;
         }
 
-        .material-info {
+        .tube-info {
             color: var(--text-secondary);
             font-size: 11px;
             margin-right: 4px;
@@ -193,14 +193,14 @@
             font-size: 12px;
         }
 
-        /* Add material section */
-        .add-material-container {
+        /* Add tube section */
+        .add-tube-container {
             margin-top: 12px;
             padding-top: 12px;
             border-top: 1px solid var(--border-color);
         }
 
-        .add-material-btn {
+        .add-tube-btn {
             width: 100%;
             padding: 8px 16px;
             background: var(--accent-blue);
@@ -213,7 +213,7 @@
             transition: background 0.1s;
         }
 
-        .add-material-btn:hover {
+        .add-tube-btn:hover {
             background: #0580b8;
         }
 
@@ -225,23 +225,23 @@
 </head>
 <body>
     <div class="info-banner">
-        <strong>Materials</strong> define tube material properties.
-        Materials with matching <strong>Tube OD</strong> can be paired with compatible dies
+        <strong>Tubes</strong> define tube specifications for bender compensation.
+        Tubes with matching <strong>Tube OD</strong> can be paired with compatible dies
         for bender compensation data.
     </div>
 
-    <div class="tree" id="materialTree">
+    <div class="tree" id="tubeTree">
         <div class="empty-state">Loading...</div>
     </div>
 
-    <div class="add-material-container">
-        <button class="add-material-btn" onclick="addMaterial()">+ Add Material</button>
-        <button class="action-btn refresh-btn" onclick="refreshMaterials()">Refresh</button>
+    <div class="add-tube-container">
+        <button class="add-tube-btn" onclick="addTube()">+ Add Tube</button>
+        <button class="action-btn refresh-btn" onclick="refreshTubes()">Refresh</button>
     </div>
 
     <script>
         // State
-        let materials = [];
+        let tubes = [];
         let expandedODs = new Set();
 
         // Fusion communication handler - receives messages from Python
@@ -249,30 +249,30 @@
             handle: function(action, data) {
                 try {
                     switch (action) {
-                        case 'loadMaterials':
-                            materials = JSON.parse(data);
+                        case 'loadTubes':
+                            tubes = JSON.parse(data);
                             // Auto-expand all OD groups
-                            const ods = [...new Set(materials.map(m => m.tube_od))];
+                            const ods = [...new Set(tubes.map(t => t.tube_od))];
                             ods.forEach(od => expandedODs.add(od));
                             renderTree();
                             return 'OK';
 
-                        case 'updateMaterial':
+                        case 'updateTube':
                             const updated = JSON.parse(data);
-                            updateMaterialInList(updated);
+                            updateTubeInList(updated);
                             renderTree();
                             return 'OK';
 
-                        case 'addMaterialToList':
-                            const newMaterial = JSON.parse(data);
-                            materials.push(newMaterial);
-                            expandedODs.add(newMaterial.tube_od);
+                        case 'addTubeToList':
+                            const newTube = JSON.parse(data);
+                            tubes.push(newTube);
+                            expandedODs.add(newTube.tube_od);
                             renderTree();
                             return 'OK';
 
-                        case 'removeMaterial':
-                            const materialId = data;
-                            materials = materials.filter(m => m.id !== materialId);
+                        case 'removeTube':
+                            const tubeId = data;
+                            tubes = tubes.filter(t => t.id !== tubeId);
                             renderTree();
                             return 'OK';
 
@@ -296,19 +296,19 @@
             }
         }
 
-        // Group materials by tube OD
-        function groupByOD(materials) {
+        // Group tubes by tube OD
+        function groupByOD(tubes) {
             const groups = {};
-            for (const mat of materials) {
-                const od = mat.tube_od;
+            for (const tube of tubes) {
+                const od = tube.tube_od;
                 if (!groups[od]) {
                     groups[od] = {
                         tube_od: od,
-                        tube_od_display: mat.tube_od_display,
-                        materials: []
+                        tube_od_display: tube.tube_od_display,
+                        tubes: []
                     };
                 }
-                groups[od].materials.push(mat);
+                groups[od].tubes.push(tube);
             }
             // Sort by OD value
             return Object.values(groups).sort((a, b) => a.tube_od - b.tube_od);
@@ -316,29 +316,29 @@
 
         // Render tree from state
         function renderTree() {
-            const container = document.getElementById('materialTree');
+            const container = document.getElementById('tubeTree');
 
-            if (materials.length === 0) {
-                container.innerHTML = '<div class="empty-state">No materials configured.<br><br>Click "+ Add Material" to create one.</div>';
+            if (tubes.length === 0) {
+                container.innerHTML = '<div class="empty-state">No tubes configured.<br><br>Click "+ Add Tube" to create one.</div>';
                 return;
             }
 
-            const groups = groupByOD(materials);
+            const groups = groupByOD(tubes);
             let html = '';
 
             for (const group of groups) {
                 const isExpanded = expandedODs.has(group.tube_od);
                 const expandClass = isExpanded ? 'expanded' : '';
-                const count = group.materials.length;
+                const count = group.tubes.length;
 
                 html += `
                     <div class="od-group ${expandClass}" data-od="${group.tube_od}">
                         <div class="od-header ${expandClass}" onclick="toggleOD(${group.tube_od})">
                             <span class="expand-icon">&#9654;</span>
-                            <span class="od-label">Tube OD: ${group.tube_od_display} (${count} material${count !== 1 ? 's' : ''})</span>
+                            <span class="od-label">Tube OD: ${group.tube_od_display} (${count} tube${count !== 1 ? 's' : ''})</span>
                         </div>
-                        <div class="material-list">
-                            ${renderMaterials(group.materials)}
+                        <div class="tube-list">
+                            ${renderTubes(group.tubes)}
                         </div>
                     </div>
                 `;
@@ -347,16 +347,19 @@
             container.innerHTML = html;
         }
 
-        function renderMaterials(materials) {
-            return materials.map(mat => {
-                const batchInfo = mat.batch ? ` [${escapeHtml(mat.batch)}]` : '';
+        function renderTubes(tubes) {
+            return tubes.map(tube => {
+                const batchInfo = tube.batch ? ` [${escapeHtml(tube.batch)}]` : '';
+                const matInfo = tube.material_type ? ` <span class="tube-info">${escapeHtml(tube.material_type)}</span>` : '';
+                const wallInfo = tube.wall_thickness_display ? ` <span class="tube-info">Wall: ${escapeHtml(tube.wall_thickness_display)}</span>` : '';
                 return `
-                    <div class="material-item" data-id="${escapeAttr(mat.id)}">
-                        <span class="material-name">${escapeHtml(mat.name)}${batchInfo}</span>
+                    <div class="tube-item" data-id="${escapeAttr(tube.id)}">
+                        <span class="tube-name">${escapeHtml(tube.name)}${batchInfo}</span>
+                        ${matInfo}${wallInfo}
                         <div class="actions">
-                            <button class="action-btn compensation" onclick="manageCompensation('${escapeAttr(mat.id)}')" title="Manage Compensation Data">&#x1F4CA;</button>
-                            <button class="action-btn" onclick="editMaterial('${escapeAttr(mat.id)}')" title="Edit Material">&#x270E;</button>
-                            <button class="action-btn delete" onclick="deleteMaterial('${escapeAttr(mat.id)}')" title="Delete Material">&#x2715;</button>
+                            <button class="action-btn compensation" onclick="manageCompensation('${escapeAttr(tube.id)}')" title="Manage Compensation Data">&#x1F4CA;</button>
+                            <button class="action-btn" onclick="editTube('${escapeAttr(tube.id)}')" title="Edit Tube">&#x270E;</button>
+                            <button class="action-btn delete" onclick="deleteTube('${escapeAttr(tube.id)}')" title="Delete Tube">&#x2715;</button>
                         </div>
                     </div>
                 `;
@@ -374,24 +377,24 @@
         }
 
         // CRUD actions - delegate to Python
-        function addMaterial() {
-            sendToFusion('addMaterial', {});
+        function addTube() {
+            sendToFusion('addTube', {});
         }
 
-        function refreshMaterials() {
-            sendToFusion('requestMaterials', {});
+        function refreshTubes() {
+            sendToFusion('requestTubes', {});
         }
 
-        function editMaterial(materialId) {
-            sendToFusion('editMaterial', { material_id: materialId });
+        function editTube(tubeId) {
+            sendToFusion('editTube', { tube_id: tubeId });
         }
 
-        function deleteMaterial(materialId) {
-            sendToFusion('deleteMaterial', { material_id: materialId });
+        function deleteTube(tubeId) {
+            sendToFusion('deleteTube', { tube_id: tubeId });
         }
 
-        function manageCompensation(materialId) {
-            sendToFusion('manageCompensation', { material_id: materialId });
+        function manageCompensation(tubeId) {
+            sendToFusion('manageCompensation', { tube_id: tubeId });
         }
 
         // Helpers
@@ -407,23 +410,23 @@
             return String(text).replace(/'/g, "\\'").replace(/"/g, '&quot;');
         }
 
-        function updateMaterialInList(updated) {
-            const idx = materials.findIndex(m => m.id === updated.id);
+        function updateTubeInList(updated) {
+            const idx = tubes.findIndex(t => t.id === updated.id);
             if (idx >= 0) {
-                materials[idx] = updated;
+                tubes[idx] = updated;
             } else {
-                materials.push(updated);
+                tubes.push(updated);
             }
         }
 
         // Request initial data when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            sendToFusion('requestMaterials', {});
+            sendToFusion('requestTubes', {});
 
             // Retry after a short delay if no data received
             setTimeout(function() {
-                if (materials.length === 0) {
-                    sendToFusion('requestMaterials', {});
+                if (tubes.length === 0) {
+                    sendToFusion('requestTubes', {});
                 }
             }, 200);
         });

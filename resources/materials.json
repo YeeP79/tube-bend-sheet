@@ -1,5 +1,13 @@
 {
   "version": "1.0",
-  "materials": [],
+  "materials": [
+    {
+      "id": "a08c23b8",
+      "name": "1.75\" OD x .120 wall DOM",
+      "tube_od": 4.445,
+      "batch": "",
+      "notes": ""
+    }
+  ],
   "compensation_data": []
 }

@@ -16,7 +16,7 @@ from ...lib import fusionAddInUtils as futil
 from ... import config
 from ...models import UnitConfig
 from ...storage import ProfileManager, AttributeManager
-from ...storage.materials import MaterialManager
+from ...storage.tubes import TubeManager
 from ...storage.attributes import TubeSettings
 
 from .dialog_builder import BendSheetDialogBuilder
@@ -48,7 +48,7 @@ local_handlers: list[futil.FusionHandler] = []
 
 # Module-level managers (initialized in start)
 _profile_manager: ProfileManager | None = None
-_material_manager: MaterialManager | None = None
+_tube_manager: TubeManager | None = None
 _dialog_builder: BendSheetDialogBuilder | None = None
 
 # Custom event service for dialog relaunch
@@ -81,12 +81,12 @@ def _relaunch_command() -> None:
 
 def start() -> None:
     """Initialize and register the command."""
-    global _profile_manager, _material_manager, _event_service
+    global _profile_manager, _tube_manager, _event_service
 
     # Initialize managers
     addin_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     _profile_manager = ProfileManager(addin_path)
-    _material_manager = MaterialManager(addin_path)
+    _tube_manager = TubeManager(addin_path)
 
     # Initialize custom event service for dialog relaunch
     _event_service = CustomEventService()
@@ -123,7 +123,7 @@ def start() -> None:
 
 def stop() -> None:
     """Clean up the command."""
-    global _profile_manager, _material_manager, _dialog_builder, _event_service, local_handlers
+    global _profile_manager, _tube_manager, _dialog_builder, _event_service, local_handlers
 
     # Stop custom event service
     if _event_service:
@@ -147,21 +147,21 @@ def stop() -> None:
         cmd_def.deleteMe()
 
     _profile_manager = None
-    _material_manager = None
+    _tube_manager = None
     _dialog_builder = None
     local_handlers = []
 
 
 def command_created(args: adsk.core.CommandCreatedEventArgs) -> None:
     """Set up the command dialog when the command is created."""
-    global _profile_manager, _material_manager, local_handlers
+    global _profile_manager, _tube_manager, local_handlers
     local_handlers = []
     futil.log(f'{CMD_NAME} Command Created Event')
 
-    # Create fresh managers to pick up any changes made via Manage Benders/Materials
+    # Create fresh managers to pick up any changes made via Manage Benders/Tubes
     addin_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     _profile_manager = ProfileManager(addin_path)
-    _material_manager = MaterialManager(addin_path)
+    _tube_manager = TubeManager(addin_path)
 
     cmd = args.command
 
@@ -192,7 +192,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs) -> None:
     # Build dialog using dialog builder
     global _dialog_builder
     _dialog_builder = BendSheetDialogBuilder(
-        cmd.commandInputs, _profile_manager, units, _material_manager
+        cmd.commandInputs, _profile_manager, units, _tube_manager
     )
     _dialog_builder.build_all(
         detected_clr=result.detected_clr,
@@ -246,12 +246,12 @@ def command_input_changed(args: adsk.core.InputChangedEventArgs) -> None:
             if bender_dropdown and bender_dropdown.selectedItem:
                 _dialog_builder.update_die_dropdown_for_bender(bender_dropdown.selectedItem.name)
 
-                # Also update material dropdown based on auto-selected die
+                # Also update tube dropdown based on auto-selected die
                 die_dropdown = adsk.core.DropDownCommandInput.cast(
                     inputs.itemById('die')
                 )
                 if die_dropdown and die_dropdown.selectedItem:
-                    _dialog_builder.update_material_dropdown_for_die_selection(
+                    _dialog_builder.update_tube_dropdown_for_die_selection(
                         bender_dropdown.selectedItem.name,
                         die_dropdown.selectedItem.name,
                     )
@@ -273,27 +273,27 @@ def command_input_changed(args: adsk.core.InputChangedEventArgs) -> None:
                     bender_dropdown.selectedItem.name,
                     die_dropdown.selectedItem.name,
                 )
-                # Update material dropdown based on die's tube_od
-                _dialog_builder.update_material_dropdown_for_die_selection(
+                # Update tube dropdown based on die's tube_od
+                _dialog_builder.update_tube_dropdown_for_die_selection(
                     bender_dropdown.selectedItem.name,
                     die_dropdown.selectedItem.name,
                 )
 
-        elif changed_input.id == 'material':
-            # Enable/disable compensation checkbox based on material selection
-            material_dropdown = adsk.core.DropDownCommandInput.cast(
-                inputs.itemById('material')
+        elif changed_input.id == 'tube':
+            # Enable/disable compensation checkbox based on tube selection
+            tube_dropdown = adsk.core.DropDownCommandInput.cast(
+                inputs.itemById('tube')
             )
             comp_checkbox = adsk.core.BoolValueCommandInput.cast(
                 inputs.itemById('apply_compensation')
             )
-            if material_dropdown and comp_checkbox:
-                has_material = (
-                    material_dropdown.selectedItem
-                    and material_dropdown.selectedItem.name != '(None)'
+            if tube_dropdown and comp_checkbox:
+                has_tube = (
+                    tube_dropdown.selectedItem
+                    and tube_dropdown.selectedItem.name != '(None)'
                 )
-                comp_checkbox.isEnabled = has_material  # type: ignore[attr-defined]
-                if not has_material:
+                comp_checkbox.isEnabled = has_tube  # type: ignore[attr-defined]
+                if not has_tube:
                     comp_checkbox.value = False  # type: ignore[attr-defined]
 
     except:
@@ -332,8 +332,8 @@ def command_execute(args: adsk.core.CommandEventArgs) -> None:
 
     # Parse input values
     parser = InputParser(inputs, units)
-    material_id_map = _dialog_builder.get_material_id_map() if _dialog_builder else None
-    params = parser.parse(_profile_manager, _material_manager, material_id_map)
+    tube_id_map = _dialog_builder.get_tube_id_map() if _dialog_builder else None
+    params = parser.parse(_profile_manager, _tube_manager, tube_id_map)
 
     # Get path info, handling direction reversal
     ordered_path = selection_result.ordered_path
@@ -366,7 +366,7 @@ def command_execute(args: adsk.core.CommandEventArgs) -> None:
         )
 
     # Generate bend sheet data
-    generator = BendSheetGenerator(units, _material_manager)
+    generator = BendSheetGenerator(units, _tube_manager)
     result = generator.generate(
         ordered_path=ordered_path,
         start_point=start_point,

@@ -24,7 +24,7 @@ from ...models import UnitConfig, BendSheetData
 if TYPE_CHECKING:
     from ...core import PathElement
     from .input_parser import BendSheetParams
-    from ...storage.materials import MaterialManager
+    from ...storage.tubes import TubeManager
 
 
 @dataclass(slots=True)
@@ -51,17 +51,17 @@ class BendSheetGenerator:
     def __init__(
         self,
         units: UnitConfig,
-        material_manager: "MaterialManager | None" = None,
+        tube_manager: "TubeManager | None" = None,
     ) -> None:
         """
         Initialize the generator.
 
         Args:
             units: Unit configuration for the design
-            material_manager: Optional material manager for compensation lookup
+            tube_manager: Optional tube manager for compensation lookup
         """
         self._units = units
-        self._material_manager = material_manager
+        self._tube_manager = tube_manager
 
     def generate(
         self,
@@ -90,9 +90,9 @@ class BendSheetGenerator:
         Returns:
             GenerationResult with success status and data or error
         """
-        # Extract lines and arcs from ordered path
-        lines: list[adsk.fusion.SketchLine] = [
-            cast(adsk.fusion.SketchLine, e.entity)
+        # Extract line endpoints and arcs from ordered path
+        line_endpoints = [
+            e.endpoints
             for e in ordered_path if e.element_type == "line"
         ]
         arcs: list[adsk.fusion.SketchArc] = [
@@ -112,7 +112,7 @@ class BendSheetGenerator:
 
         # Calculate straights and bends
         straights, bends = calculate_straights_and_bends(
-            lines, arcs, start_point, clr, self._units,
+            line_endpoints, arcs, start_point, clr, self._units,
             starts_with_arc=starts_with_arc,
             ends_with_arc=ends_with_arc,
         )
@@ -170,12 +170,12 @@ class BendSheetGenerator:
         compensation_warnings: list[str] = []
         if (
             params.apply_compensation
-            and params.material_id
+            and params.tube_id
             and params.die_id
-            and self._material_manager
+            and self._tube_manager
         ):
-            compensation_data = self._material_manager.get_compensation(
-                params.die_id, params.material_id
+            compensation_data = self._tube_manager.get_compensation(
+                params.die_id, params.tube_id
             )
             if compensation_data and compensation_data.data_points:
                 for mark in mark_positions:
@@ -259,7 +259,9 @@ class BendSheetGenerator:
             effective_start_allowance=material.effective_start_allowance,
             effective_end_allowance=material.effective_end_allowance,
             spring_back_warning=spring_back_warning,
-            material_name=params.material_name,
+            tube_name=params.tube_name,
+            wall_thickness=params.wall_thickness,
+            material_type=params.material_type,
             apply_compensation=params.apply_compensation,
             compensation_warnings=compensation_warnings,
         )

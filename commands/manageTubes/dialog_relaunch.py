@@ -1,7 +1,7 @@
-"""Dialog relaunch service for Manage Materials command.
+"""Dialog relaunch service for Manage Tubes command.
 
 Wraps CustomEventService for the specific use case of reopening
-the Manage Materials dialog after an edit dialog closes.
+the Manage Tubes dialog after an edit dialog closes.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from ...lib.custom_events import CustomEventService
 from ... import config
 
 # Event identity
-RELAUNCH_EVENT_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_relaunchManageMaterials'
+RELAUNCH_EVENT_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_relaunchManageTubes'
 
 # Module state
 _event_service: CustomEventService | None = None
@@ -36,7 +36,7 @@ def start(target_command_id: str) -> None:
     """Register the relaunch event. Call from entry.start().
 
     Args:
-        target_command_id: The command ID to relaunch (Manage Materials CMD_ID)
+        target_command_id: The command ID to relaunch (Manage Tubes CMD_ID)
     """
     global _event_service, _target_command_id
 
@@ -57,7 +57,7 @@ def stop() -> None:
 
 
 def request_relaunch() -> None:
-    """Request the Manage Materials dialog to reopen.
+    """Request the Manage Tubes dialog to reopen.
 
     Call from edit dialog's command_execute handler.
     The event fires asynchronously after the command completes.

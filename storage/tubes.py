@@ -1,4 +1,4 @@
-"""Material and compensation data storage and management."""
+"""Tube and compensation data storage and management."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import threading
 import uuid
 from pathlib import Path
 
-from ..models.material import Material, validate_material_values
+from ..models.tube import Tube, validate_tube_values
 from ..models.compensation import (
     DieMaterialCompensation,
     validate_compensation_values,
@@ -15,59 +15,62 @@ from ..models.compensation import (
 from ..lib import fusionAddInUtils as futil
 
 
-class MaterialSaveError(IOError):
-    """Raised when saving materials fails."""
+class TubeSaveError(IOError):
+    """Raised when saving tubes fails."""
 
     pass
 
 
-class MaterialLoadError(IOError):
-    """Raised when loading materials fails due to I/O errors."""
+class TubeLoadError(IOError):
+    """Raised when loading tubes fails due to I/O errors."""
 
     pass
 
 
-class MaterialManager:
+class TubeManager:
     """
-    Manages materials and compensation data stored in JSON.
+    Manages tubes and compensation data stored in JSON.
 
-    Materials and compensation data are stored in a materials.json file
+    Tubes and compensation data are stored in a tubes.json file
     in the add-in's resources folder.
 
     Schema Version History:
         1.0 - Initial schema with materials and compensation_data
+        1.1 - Renamed to tubes.json, added wall_thickness and material_type
     """
 
-    FILENAME = 'materials.json'
-    CURRENT_VERSION = '1.0'
-    SUPPORTED_VERSIONS = {'1.0'}
+    FILENAME = 'tubes.json'
+    LEGACY_FILENAME = 'materials.json'
+    CURRENT_VERSION = '1.1'
+    SUPPORTED_VERSIONS = {'1.0', '1.1'}
 
     def __init__(self, addin_path: str) -> None:
         """
-        Initialize the material manager.
+        Initialize the tube manager.
 
         Args:
             addin_path: Path to the add-in root directory
         """
         self._addin_path = Path(addin_path)
         self._resources_path = self._addin_path / 'resources'
-        self._materials_path = self._resources_path / self.FILENAME
-        self._materials: list[Material] = []
+        self._tubes_path = self._resources_path / self.FILENAME
+        self._legacy_path = self._resources_path / self.LEGACY_FILENAME
+        self._tubes: list[Tube] = []
         self._compensation_data: list[DieMaterialCompensation] = []
         self._loaded = False
         self._load_lock = threading.Lock()
 
     @property
-    def materials(self) -> list[Material]:
-        """Get all materials.
+    def tubes(self) -> list[Tube]:
+        """Get all tubes.
 
         Thread-safe lazy loading using a lock to prevent race conditions
-        when multiple threads access materials simultaneously.
+        when multiple threads access tubes simultaneously.
         """
         with self._load_lock:
             if not self._loaded:
                 self.load()
-        return self._materials
+        return self._tubes
 
     @property
     def compensation_data(self) -> list[DieMaterialCompensation]:
@@ -92,86 +95,100 @@ class MaterialManager:
 
     def load(self) -> None:
         """
-        Load materials and compensation data from disk.
+        Load tubes and compensation data from disk.
 
-        If no file exists, creates empty defaults.
+        If no file exists, checks for legacy materials.json and migrates.
+        If neither exists, creates empty defaults.
         If file is corrupted (invalid JSON), creates fresh defaults.
         Invalid individual entries are skipped with a warning.
 
         Raises:
-            MaterialLoadError: If file exists but cannot be read due to I/O errors
+            TubeLoadError: If file exists but cannot be read due to I/O errors
         """
-        self._materials = []
+        self._tubes = []
         self._compensation_data = []
 
-        if not self._materials_path.exists():
-            # Create empty file if none exists
-            self.save()
-        else:
-            try:
-                with open(self._materials_path, encoding='utf-8') as f:
-                    data = json.load(f)
-
-                # Validate top-level structure
-                if not isinstance(data, dict):
-                    raise MaterialLoadError(
-                        "Invalid materials format: expected JSON object at root"
-                    )
-
-                # Check schema version
-                file_version = data.get('version', '1.0')
-                if file_version not in self.SUPPORTED_VERSIONS:
-                    raise MaterialLoadError(
-                        f"Unsupported materials schema version: {file_version}. "
-                        f"Supported versions: {', '.join(sorted(self.SUPPORTED_VERSIONS))}"
-                    )
-
-                # Parse materials
-                materials_list = data.get('materials', [])
-                if isinstance(materials_list, list):
-                    for i, mat_data in enumerate(materials_list):
-                        try:
-                            self._materials.append(Material.from_dict(mat_data))
-                        except (KeyError, TypeError, ValueError) as e:
-                            futil.log(f"Warning: Skipping invalid material at index {i}: {e}")
-                            continue
-
-                # Parse compensation data
-                comp_list = data.get('compensation_data', [])
-                if isinstance(comp_list, list):
-                    for i, comp_data in enumerate(comp_list):
-                        try:
-                            self._compensation_data.append(
-                                DieMaterialCompensation.from_dict(comp_data)
-                            )
-                        except (KeyError, TypeError, ValueError) as e:
-                            futil.log(
-                                f"Warning: Skipping invalid compensation data at index {i}: {e}"
-                            )
-                            continue
-
-            except json.JSONDecodeError as e:
-                # If file is corrupted JSON, start fresh
-                futil.log(f"Error loading materials (invalid JSON): {e}")
+        # Migration: if tubes.json doesn't exist but materials.json does, read from legacy
+        load_path = self._tubes_path
+        if not self._tubes_path.exists():
+            if self._legacy_path.exists():
+                load_path = self._legacy_path
+                futil.log(f"TubeManager: Migrating from {self.LEGACY_FILENAME} to {self.FILENAME}")
+            else:
+                # No file exists - create empty
                 self.save()
+                self._loaded = True
+                return
 
-            except OSError as e:
-                # I/O errors are not recoverable - raise to caller
-                raise MaterialLoadError(f"Failed to load materials: {e}") from e
+        try:
+            with open(load_path, encoding='utf-8') as f:
+                data = json.load(f)
+
+            # Validate top-level structure
+            if not isinstance(data, dict):
+                raise TubeLoadError(
+                    "Invalid tubes format: expected JSON object at root"
+                )
+
+            # Check schema version
+            file_version = data.get('version', '1.0')
+            if file_version not in self.SUPPORTED_VERSIONS:
+                raise TubeLoadError(
+                    f"Unsupported tubes schema version: {file_version}. "
+                    f"Supported versions: {', '.join(sorted(self.SUPPORTED_VERSIONS))}"
+                )
+
+            # Parse tubes (supports both 'tubes' and legacy 'materials' keys)
+            tubes_list = data.get('tubes', data.get('materials', []))
+            if isinstance(tubes_list, list):
+                for i, tube_data in enumerate(tubes_list):
+                    try:
+                        self._tubes.append(Tube.from_dict(tube_data))
+                    except (KeyError, TypeError, ValueError) as e:
+                        futil.log(f"Warning: Skipping invalid tube at index {i}: {e}")
+                        continue
+
+            # Parse compensation data
+            comp_list = data.get('compensation_data', [])
+            if isinstance(comp_list, list):
+                for i, comp_data in enumerate(comp_list):
+                    try:
+                        self._compensation_data.append(
+                            DieMaterialCompensation.from_dict(comp_data)
+                        )
+                    except (KeyError, TypeError, ValueError) as e:
+                        futil.log(
+                            f"Warning: Skipping invalid compensation data at index {i}: {e}"
+                        )
+                        continue
+
+            # If we loaded from legacy file, save to new file
+            if load_path == self._legacy_path:
+                self.save()
+                futil.log(f"TubeManager: Migration complete - saved to {self.FILENAME}")
+
+        except json.JSONDecodeError as e:
+            # If file is corrupted JSON, start fresh
+            futil.log(f"Error loading tubes (invalid JSON): {e}")
+            self.save()
+
+        except OSError as e:
+            # I/O errors are not recoverable - raise to caller
+            raise TubeLoadError(f"Failed to load tubes: {e}") from e
 
         self._loaded = True
 
     def save(self) -> None:
         """
-        Save materials and compensation data to disk using atomic write pattern.
+        Save tubes and compensation data to disk using atomic write pattern.
 
         Writes to a temporary file first, then atomically renames to target.
         This prevents data corruption from interrupted writes.
 
         Raises:
-            MaterialSaveError: If file cannot be written
+            TubeSaveError: If file cannot be written
         """
-        temp_path = self._materials_path.with_suffix('.tmp')
+        temp_path = self._tubes_path.with_suffix('.tmp')
 
         try:
             # Ensure resources directory exists
@@ -179,7 +196,7 @@ class MaterialManager:
 
             data = {
                 'version': self.CURRENT_VERSION,
-                'materials': [m.to_dict() for m in self._materials],
+                'tubes': [t.to_dict() for t in self._tubes],
                 'compensation_data': [c.to_dict() for c in self._compensation_data],
             }
 
@@ -188,7 +205,7 @@ class MaterialManager:
                 json.dump(data, f, indent=2)
 
             # Atomic rename to target (overwrites existing)
-            temp_path.replace(self._materials_path)
+            temp_path.replace(self._tubes_path)
 
         except (OSError, TypeError) as e:
             # Clean up temp file on failure
@@ -198,136 +215,150 @@ class MaterialManager:
                 except OSError:
                     pass  # Best effort cleanup
 
-            raise MaterialSaveError(f"Failed to save materials: {e}") from e
+            raise TubeSaveError(f"Failed to save tubes: {e}") from e
 
     def _generate_id(self) -> str:
         """Generate a unique ID."""
         return str(uuid.uuid4())[:8]
 
     # -------------------------------------------------------------------------
-    # Material CRUD Operations
+    # Tube CRUD Operations
     # -------------------------------------------------------------------------
 
-    def get_material_by_id(self, material_id: str) -> Material | None:
-        """Find a material by ID."""
-        for material in self.materials:
-            if material.id == material_id:
-                return material
+    def get_tube_by_id(self, tube_id: str) -> Tube | None:
+        """Find a tube by ID."""
+        for tube in self.tubes:
+            if tube.id == tube_id:
+                return tube
         return None
 
-    def get_material_by_name(self, name: str) -> Material | None:
-        """Find a material by name."""
-        for material in self.materials:
-            if material.name == name:
-                return material
+    def get_tube_by_name(self, name: str) -> Tube | None:
+        """Find a tube by name."""
+        for tube in self.tubes:
+            if tube.name == name:
+                return tube
         return None
 
-    def get_materials_by_tube_od(
+    def get_tubes_by_tube_od(
         self, tube_od: float, tolerance: float = 0.01
-    ) -> list[Material]:
+    ) -> list[Tube]:
         """
-        Get all materials that match a given tube OD.
+        Get all tubes that match a given tube OD.
 
         Args:
             tube_od: Tube outer diameter to match (in cm)
             tolerance: Matching tolerance (default 0.01 cm)
 
         Returns:
-            List of matching materials
+            List of matching tubes
         """
-        return [m for m in self.materials if m.matches_tube_od(tube_od, tolerance)]
+        return [t for t in self.tubes if t.matches_tube_od(tube_od, tolerance)]
 
-    def add_material(
+    def add_tube(
         self,
         name: str,
         tube_od: float,
+        wall_thickness: float = 0.0,
+        material_type: str = "",
         batch: str = "",
         notes: str = "",
-    ) -> Material:
+    ) -> Tube:
         """
-        Add a new material.
+        Add a new tube.
 
         Args:
-            name: Display name for the material
+            name: Display name for the tube
             tube_od: Tube outer diameter (must be positive)
+            wall_thickness: Wall thickness (must be non-negative)
+            material_type: Material type (from MATERIAL_TYPES)
             batch: Optional batch/lot number
             notes: Optional notes
 
         Returns:
-            The created Material
+            The created Tube
 
         Raises:
-            ValueError: If tube_od is not positive
+            ValueError: If tube_od is not positive or wall_thickness is negative
         """
-        validate_material_values(tube_od=tube_od)
+        validate_tube_values(tube_od=tube_od, wall_thickness=wall_thickness)
 
-        material = Material(
+        tube = Tube(
             id=self._generate_id(),
             name=name,
             tube_od=tube_od,
+            wall_thickness=wall_thickness,
+            material_type=material_type,
             batch=batch,
             notes=notes,
         )
-        self._materials.append(material)
+        self._tubes.append(tube)
         self.save()
-        return material
+        return tube
 
-    def update_material(
+    def update_tube(
         self,
-        material_id: str,
+        tube_id: str,
         name: str | None = None,
         tube_od: float | None = None,
+        wall_thickness: float | None = None,
+        material_type: str | None = None,
         batch: str | None = None,
         notes: str | None = None,
     ) -> bool:
         """
-        Update an existing material.
+        Update an existing tube.
 
         Args:
-            material_id: ID of material to update
+            tube_id: ID of tube to update
             name: New name (optional)
             tube_od: New tube OD - must be positive (optional)
+            wall_thickness: New wall thickness - must be non-negative (optional)
+            material_type: New material type (optional)
             batch: New batch number (optional)
             notes: New notes (optional)
 
         Returns:
-            True if material was found and updated
+            True if tube was found and updated
 
         Raises:
-            ValueError: If tube_od is not positive
+            ValueError: If tube_od is not positive or wall_thickness is negative
         """
-        material = self.get_material_by_id(material_id)
-        if material is None:
+        tube = self.get_tube_by_id(tube_id)
+        if tube is None:
             return False
 
-        # Validate tube_od before updating
-        validate_material_values(tube_od=tube_od)
+        # Validate before updating
+        validate_tube_values(tube_od=tube_od, wall_thickness=wall_thickness)
 
         if name is not None:
-            material.name = name
+            tube.name = name
         if tube_od is not None:
-            material.tube_od = tube_od
+            tube.tube_od = tube_od
+        if wall_thickness is not None:
+            tube.wall_thickness = wall_thickness
+        if material_type is not None:
+            tube.material_type = material_type
         if batch is not None:
-            material.batch = batch
+            tube.batch = batch
         if notes is not None:
-            material.notes = notes
+            tube.notes = notes
 
         self.save()
         return True
 
-    def delete_material(self, material_id: str) -> bool:
+    def delete_tube(self, tube_id: str) -> bool:
         """
-        Delete a material and its associated compensation data.
+        Delete a tube and its associated compensation data.
 
         Returns:
-            True if material was found and deleted
+            True if tube was found and deleted
         """
-        for i, material in enumerate(self._materials):
-            if material.id == material_id:
-                self._materials.pop(i)
-                # Also remove any compensation data for this material
+        for i, tube in enumerate(self._tubes):
+            if tube.id == tube_id:
+                self._tubes.pop(i)
+                # Also remove any compensation data for this tube
                 self._compensation_data = [
-                    c for c in self._compensation_data if c.material_id != material_id
+                    c for c in self._compensation_data if c.material_id != tube_id
                 ]
                 self.save()
                 return True
@@ -341,11 +372,11 @@ class MaterialManager:
         self, die_id: str, material_id: str
     ) -> DieMaterialCompensation | None:
         """
-        Get compensation data for a specific die-material pair.
+        Get compensation data for a specific die-tube pair.
 
         Args:
             die_id: ID of the die
-            material_id: ID of the material
+            material_id: ID of the tube
 
         Returns:
             DieMaterialCompensation if found, None otherwise
@@ -363,7 +394,7 @@ class MaterialManager:
 
         Args:
             die_id: ID of the die
-            material_id: ID of the material
+            material_id: ID of the tube
 
         Returns:
             DieMaterialCompensation (existing or newly created)
@@ -387,11 +418,11 @@ class MaterialManager:
         measured_angle: float,
     ) -> bool:
         """
-        Add a compensation data point for a die-material pair.
+        Add a compensation data point for a die-tube pair.
 
         Args:
             die_id: ID of the die
-            material_id: ID of the material
+            material_id: ID of the tube
             readout_angle: What bender readout showed (degrees)
             measured_angle: Actual measured angle (degrees)
 
@@ -418,7 +449,7 @@ class MaterialManager:
 
         Args:
             die_id: ID of the die
-            material_id: ID of the material
+            material_id: ID of the tube
             index: Index of data point to remove
 
         Returns:
@@ -435,14 +466,14 @@ class MaterialManager:
 
     def clear_compensation_data(self, die_id: str, material_id: str) -> bool:
         """
-        Clear all compensation data points for a die-material pair.
+        Clear all compensation data points for a die-tube pair.
 
         Use this when the bender is recalibrated and all previous
         data becomes invalid.
 
         Args:
             die_id: ID of the die
-            material_id: ID of the material
+            material_id: ID of the tube
 
         Returns:
             True if cleared, False if no data found

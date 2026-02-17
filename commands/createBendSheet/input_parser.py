@@ -16,7 +16,7 @@ from ...storage import ProfileManager
 from .die_filter import DieFilter
 
 if TYPE_CHECKING:
-    from ...storage.materials import MaterialManager
+    from ...storage.tubes import TubeManager
 
 
 @dataclass(slots=True)
@@ -41,8 +41,10 @@ class BendSheetParams:
     add_allowance_with_grip_extension: bool = False
     add_allowance_with_tail_extension: bool = False
     # Compensation fields
-    material_id: str = ""  # Selected material ID (if any)
-    material_name: str = ""  # Selected material name (for display)
+    tube_id: str = ""  # Selected tube ID (if any)
+    tube_name: str = ""  # Selected tube name (for display)
+    wall_thickness: float = 0.0  # Wall thickness from tube profile
+    material_type: str = ""  # Material type from tube profile
     apply_compensation: bool = False  # Whether to apply bender compensation
 
 
@@ -164,16 +166,16 @@ class InputParser:
     def parse(
         self,
         profile_manager: ProfileManager | None,
-        material_manager: "MaterialManager | None" = None,
-        material_id_map: dict[str, str] | None = None,
+        tube_manager: "TubeManager | None" = None,
+        tube_id_map: dict[str, str] | None = None,
     ) -> BendSheetParams:
         """
         Parse all inputs into a typed BendSheetParams object.
 
         Args:
             profile_manager: Optional profile manager for bender/die lookup
-            material_manager: Optional material manager for material lookup
-            material_id_map: Optional mapping of display names to material IDs
+            tube_manager: Optional tube manager for tube lookup
+            tube_id_map: Optional mapping of display names to tube IDs
 
         Returns:
             BendSheetParams with all values extracted
@@ -214,26 +216,30 @@ class InputParser:
         # Index 0 = natural direction, Index 1 = reversed
         travel_reversed = self.get_radio_button_index('travel_direction') == 1
 
-        # Parse material and compensation settings
-        material_id = ""
-        material_name = ""
+        # Parse tube and compensation settings
+        tube_id = ""
+        tube_name = ""
+        wall_thickness = 0.0
+        material_type = ""
         apply_compensation = False
 
-        material_selection = self.get_dropdown_value('material')
-        if material_selection and material_selection != "(None)" and material_manager:
-            material = None
+        tube_selection = self.get_dropdown_value('tube')
+        if tube_selection and tube_selection != "(None)" and tube_manager:
+            tube = None
             # Use ID map if available (handles batch suffix in display name)
-            if material_id_map and material_selection in material_id_map:
-                mat_id = material_id_map[material_selection]
-                material = material_manager.get_material_by_id(mat_id)
+            if tube_id_map and tube_selection in tube_id_map:
+                t_id = tube_id_map[tube_selection]
+                tube = tube_manager.get_tube_by_id(t_id)
             else:
-                # Fall back to name lookup (may fail for materials with batch)
-                material = material_manager.get_material_by_name(material_selection)
+                # Fall back to name lookup (may fail for tubes with batch)
+                tube = tube_manager.get_tube_by_name(tube_selection)
 
-            if material:
-                material_id = material.id
-                material_name = material.name
-                # Only apply compensation if checkbox is checked and we have a material
+            if tube:
+                tube_id = tube.id
+                tube_name = tube.name
+                wall_thickness = tube.wall_thickness
+                material_type = tube.material_type
+                # Only apply compensation if checkbox is checked and we have a tube
                 apply_compensation = self.get_bool_value('apply_compensation')
 
         return BendSheetParams(
@@ -257,7 +263,9 @@ class InputParser:
             add_allowance_with_tail_extension=self.get_bool_value(
                 'add_allowance_with_tail'
             ),
-            material_id=material_id,
-            material_name=material_name,
+            tube_id=tube_id,
+            tube_name=tube_name,
+            wall_thickness=wall_thickness,
+            material_type=material_type,
             apply_compensation=apply_compensation,
         )

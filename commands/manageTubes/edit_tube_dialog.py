@@ -1,6 +1,6 @@
-"""Edit Material dialog command.
+"""Edit Tube dialog command.
 
-A hidden Fusion command that displays a form dialog for adding/editing materials.
+A hidden Fusion command that displays a form dialog for adding/editing tubes.
 This command is not added to any toolbar - it's launched programmatically.
 """
 
@@ -13,27 +13,28 @@ import adsk.core
 from ...lib import fusionAddInUtils as futil
 from ... import config
 from ...models import UnitConfig
-from .dialog_contexts import EditMaterialContext
+from ...models.tube import MATERIAL_TYPES
+from .dialog_contexts import EditTubeContext
 from .dialog_relaunch import request_relaunch
-from .input_dialogs import MaterialInput
+from .input_dialogs import TubeInput
 
 # Command identity - hidden from toolbar
-CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_editMaterialDialog'
-CMD_NAME = 'Edit Material'
+CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_editTubeDialog'
+CMD_NAME = 'Edit Tube'
 
 # Handler list for lifetime management
 local_handlers: list[futil.FusionHandler] = []
 
 # Module-level state for passing context between functions
-_context: EditMaterialContext | None = None
+_context: EditTubeContext | None = None
 _units: UnitConfig | None = None
-_on_complete: Callable[[MaterialInput | None], None] | None = None
+_on_complete: Callable[[TubeInput | None], None] | None = None
 
 
 def set_context(
-    context: EditMaterialContext,
+    context: EditTubeContext,
     units: UnitConfig,
-    on_complete: Callable[[MaterialInput | None], None],
+    on_complete: Callable[[TubeInput | None], None],
 ) -> None:
     """Set context before launching the dialog.
 
@@ -95,16 +96,16 @@ def command_created(args: adsk.core.CommandCreatedEventArgs) -> None:
     inputs = cmd.commandInputs
 
     # Set dialog size
-    cmd.setDialogInitialSize(400, 300)
+    cmd.setDialogInitialSize(400, 350)
 
     # Name field
     name_input = inputs.addStringValueInput(
-        'material_name',
+        'tube_name',
         'Name',
         _context.current_name,
     )
     name_input.tooltip = (  # type: ignore[attr-defined]
-        'Display name for this material (e.g., "DOM 1020", "4130 Chromoly")'
+        'Display name for this tube (e.g., "DOM 1020 1.75x0.120")'
     )
 
     # Tube OD field - context value is already in cm (internal units)
@@ -116,8 +117,31 @@ def command_created(args: adsk.core.CommandCreatedEventArgs) -> None:
     )
     tube_od_input.tooltip = (
         'Tube outer diameter. This must match the tube OD of dies '
-        'you want to use with this material for compensation data.'
+        'you want to use with this tube for compensation data.'
     )
+
+    # Wall thickness field
+    wall_input = inputs.addValueInput(
+        'wall_thickness',
+        f'Wall Thickness ({_units.unit_symbol})',
+        _units.unit_name,
+        adsk.core.ValueInput.createByReal(_context.current_wall_thickness),
+    )
+    wall_input.tooltip = (
+        'Wall thickness of the tube. Leave at 0 if not specified.'
+    )
+
+    # Material type dropdown
+    mat_type_dropdown = inputs.addDropDownCommandInput(
+        'material_type',
+        'Material Type',
+        adsk.core.DropDownStyles.TextListDropDownStyle,
+    )
+    items = mat_type_dropdown.listItems
+    for mat_type in MATERIAL_TYPES:
+        display = mat_type if mat_type else "(Not specified)"
+        is_selected = mat_type == _context.current_material_type
+        items.add(display, is_selected)
 
     # Batch field
     batch_input = inputs.addStringValueInput(
@@ -126,7 +150,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs) -> None:
         _context.current_batch,
     )
     batch_input.tooltip = (  # type: ignore[attr-defined]
-        'Optional batch or lot number for tracking material batches with '
+        'Optional batch or lot number for tracking tube batches with '
         'different properties.'
     )
 
@@ -139,7 +163,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs) -> None:
         False,  # Not read-only
     )
     notes_input.tooltip = (  # type: ignore[attr-defined]
-        'Optional notes about this material (supplier, specifications, etc.)'
+        'Optional notes about this tube (supplier, specifications, etc.)'
     )
 
     # Connect event handlers
@@ -157,8 +181,10 @@ def command_execute(args: adsk.core.CommandEventArgs) -> None:
     inputs = args.command.commandInputs
 
     # Extract values
-    name_input = adsk.core.StringValueCommandInput.cast(inputs.itemById('material_name'))
+    name_input = adsk.core.StringValueCommandInput.cast(inputs.itemById('tube_name'))
     tube_od_input = adsk.core.ValueCommandInput.cast(inputs.itemById('tube_od'))
+    wall_input = adsk.core.ValueCommandInput.cast(inputs.itemById('wall_thickness'))
+    mat_type_dropdown = adsk.core.DropDownCommandInput.cast(inputs.itemById('material_type'))
     batch_input = adsk.core.StringValueCommandInput.cast(inputs.itemById('batch'))
     notes_input = adsk.core.TextBoxCommandInput.cast(  # type: ignore[attr-defined]
         inputs.itemById('notes')
@@ -169,6 +195,15 @@ def command_execute(args: adsk.core.CommandEventArgs) -> None:
 
     name = name_input.value.strip()
     tube_od = tube_od_input.value  # Already in cm from ValueInput
+    wall_thickness = wall_input.value if wall_input else 0.0
+
+    # Extract material type from dropdown
+    material_type = ""
+    if mat_type_dropdown and mat_type_dropdown.selectedItem:
+        selected_name = mat_type_dropdown.selectedItem.name
+        if selected_name != "(Not specified)":
+            material_type = selected_name
+
     batch = batch_input.value.strip()
     notes = notes_input.text
 
@@ -186,13 +221,25 @@ def command_execute(args: adsk.core.CommandEventArgs) -> None:
         args.isValidResult = False  # type: ignore[attr-defined]
         return
 
+    if wall_thickness < 0:
+        ui.messageBox('Wall thickness must be non-negative.', 'Invalid Input')
+        args.isValidResult = False  # type: ignore[attr-defined]
+        return
+
     # Create result and call callback
-    result = MaterialInput(name=name, tube_od=tube_od, batch=batch, notes=notes)
+    result = TubeInput(
+        name=name,
+        tube_od=tube_od,
+        wall_thickness=wall_thickness,
+        material_type=material_type,
+        batch=batch,
+        notes=notes,
+    )
 
     if _on_complete:
         _on_complete(result)
 
-    # Request Manage Materials dialog to reopen after this dialog closes
+    # Request Manage Tubes dialog to reopen after this dialog closes
     request_relaunch()
 
 

@@ -1,7 +1,7 @@
 """Python-JavaScript bridge for BrowserCommandInput communication.
 
 This module provides type-safe handling of messages between the Python
-add-in and the HTML material tree view component.
+add-in and the HTML tube tree view component.
 """
 
 from __future__ import annotations
@@ -15,33 +15,36 @@ if TYPE_CHECKING:
 
 from ...lib import fusionAddInUtils as futil
 from ...models import UnitConfig
-from ...models.material import Material
+from ...models.tube import Tube
 
 
 # Action types for incoming messages (JS -> Python)
 IncomingAction = Literal[
-    'requestMaterials',
-    'addMaterial',
-    'editMaterial',
-    'deleteMaterial',
+    'requestTubes',
+    'addTube',
+    'editTube',
+    'deleteTube',
     'manageCompensation',
 ]
 
 # Action types for outgoing messages (Python -> JS)
 OutgoingAction = Literal[
-    'loadMaterials',
-    'updateMaterial',
-    'addMaterialToList',
-    'removeMaterial',
+    'loadTubes',
+    'updateTube',
+    'addTubeToList',
+    'removeTube',
 ]
 
 
-class MaterialDisplayDict(TypedDict):
-    """Type-safe dict for material display data sent to HTML."""
+class TubeDisplayDict(TypedDict):
+    """Type-safe dict for tube display data sent to HTML."""
 
     id: str
     name: str
     tube_od: float
+    wall_thickness: float
+    wall_thickness_display: str
+    material_type: str
     batch: str
     notes: str
     tube_od_display: str  # Formatted display string with units
@@ -52,13 +55,13 @@ class HTMLMessage:
     """Parsed message from JavaScript."""
 
     action: str
-    material_id: str | None = None
+    tube_id: str | None = None
     die_id: str | None = None
 
     def __repr__(self) -> str:
         parts = [f"action={self.action!r}"]
-        if self.material_id:
-            parts.append(f"material_id={self.material_id!r}")
+        if self.tube_id:
+            parts.append(f"tube_id={self.tube_id!r}")
         if self.die_id:
             parts.append(f"die_id={self.die_id!r}")
         return f"HTMLMessage({', '.join(parts)})"
@@ -119,7 +122,7 @@ class HTMLBridge:
 
         return HTMLMessage(
             action=action,
-            material_id=data.get('material_id'),
+            tube_id=data.get('tube_id'),
             die_id=data.get('die_id'),
         )
 
@@ -130,61 +133,68 @@ class HTMLBridge:
         display_value = value_cm * self._units.cm_to_unit
         return f"{display_value:.4f}{self._units.unit_symbol}"
 
-    def _format_material_for_display(self, material: Material) -> MaterialDisplayDict:
+    def _format_tube_for_display(self, tube: Tube) -> TubeDisplayDict:
         """
-        Format a material for HTML display with converted units.
+        Format a tube for HTML display with converted units.
 
         Args:
-            material: The material to format
+            tube: The tube to format
 
         Returns:
-            Type-safe dict with material data plus formatted display strings
+            Type-safe dict with tube data plus formatted display strings
         """
-        return MaterialDisplayDict(
-            id=material.id,
-            name=material.name,
-            tube_od=material.tube_od,
-            batch=material.batch,
-            notes=material.notes,
-            tube_od_display=self._format_value(material.tube_od),
+        wall_display = ""
+        if tube.wall_thickness > 0:
+            wall_display = self._format_value(tube.wall_thickness)
+
+        return TubeDisplayDict(
+            id=tube.id,
+            name=tube.name,
+            tube_od=tube.tube_od,
+            wall_thickness=tube.wall_thickness,
+            wall_thickness_display=wall_display,
+            material_type=tube.material_type,
+            batch=tube.batch,
+            notes=tube.notes,
+            tube_od_display=self._format_value(tube.tube_od),
         )
 
-    def send_materials(self, materials: list[Material]) -> None:
+    def send_tubes(self, tubes: list[Tube]) -> None:
         """
-        Send the full material list to the HTML view.
+        Send the full tube list to the HTML view.
 
         Args:
-            materials: List of all materials to display
+            tubes: List of all tubes to display
         """
-        formatted = [self._format_material_for_display(m) for m in materials]
+        formatted = [self._format_tube_for_display(t) for t in tubes]
         data = json.dumps(formatted)
-        self._browser_input.sendInfoToHTML('loadMaterials', data)
+        self._browser_input.sendInfoToHTML('loadTubes', data)
 
-    def send_material_added(self, material: Material) -> None:
+    def send_tube_added(self, tube: Tube) -> None:
         """
-        Notify HTML that a new material was added.
-
-        Args:
-            material: The newly created material
-        """
-        data = json.dumps(self._format_material_for_display(material))
-        self._browser_input.sendInfoToHTML('addMaterialToList', data)
-
-    def send_material_update(self, material: Material) -> None:
-        """
-        Send a single material update to the HTML view.
+        Notify HTML that a new tube was added.
 
         Args:
-            material: The updated material
+            tube: The newly created tube
         """
-        data = json.dumps(self._format_material_for_display(material))
-        self._browser_input.sendInfoToHTML('updateMaterial', data)
+        data = json.dumps(self._format_tube_for_display(tube))
+        self._browser_input.sendInfoToHTML('addTubeToList', data)
 
-    def send_material_removed(self, material_id: str) -> None:
+    def send_tube_update(self, tube: Tube) -> None:
         """
-        Notify HTML that a material was removed.
+        Send a single tube update to the HTML view.
 
         Args:
-            material_id: ID of the removed material
+            tube: The updated tube
         """
-        self._browser_input.sendInfoToHTML('removeMaterial', material_id)
+        data = json.dumps(self._format_tube_for_display(tube))
+        self._browser_input.sendInfoToHTML('updateTube', data)
+
+    def send_tube_removed(self, tube_id: str) -> None:
+        """
+        Notify HTML that a tube was removed.
+
+        Args:
+            tube_id: ID of the removed tube
+        """
+        self._browser_input.sendInfoToHTML('removeTube', tube_id)

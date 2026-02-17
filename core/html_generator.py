@@ -349,8 +349,12 @@ def _generate_specifications(data: BendSheetData) -> str:
         html += f"<tr><td>Bender</td><td>{_escape_html(data.bender_name)}</td></tr>\n"
     if data.die_name:
         html += f"<tr><td>Die</td><td>{_escape_html(data.die_name)}</td></tr>\n"
-    if data.material_name:
-        html += f"<tr><td>Material</td><td>{_escape_html(data.material_name)}</td></tr>\n"
+    if data.tube_name:
+        html += f"<tr><td>Tube</td><td>{_escape_html(data.tube_name)}</td></tr>\n"
+    if data.wall_thickness > 0:
+        html += f"<tr><td>Wall Thickness</td><td>{format_length(data.wall_thickness, precision, units)}</td></tr>\n"
+    if data.material_type:
+        html += f"<tr><td>Material</td><td>{_escape_html(data.material_type)}</td></tr>\n"
     if data.apply_compensation:
         html += "<tr><td>Compensation</td><td>Applied (bender-specific)</td></tr>\n"
     html += f"<tr><td>Units</td><td>{units.unit_name}</td></tr>\n"

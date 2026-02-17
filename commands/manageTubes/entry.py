@@ -1,7 +1,7 @@
-"""Manage Materials command - add, edit, and delete material profiles.
+"""Manage Tubes command - add, edit, and delete tube profiles.
 
 This command provides a dialog with an HTML tree view for managing tube
-materials and their associated bender compensation data.
+specifications and their associated bender compensation data.
 """
 
 from __future__ import annotations
@@ -14,19 +14,19 @@ import adsk.fusion
 from ...lib import fusionAddInUtils as futil
 from ... import config
 from ...storage import ProfileManager
-from ...storage.materials import MaterialManager
+from ...storage.tubes import TubeManager
 from ...models import UnitConfig
-from ...models.material import Material
+from ...models.tube import Tube
 from .html_bridge import HTMLBridge
 from .input_dialogs import (
-    MaterialInput,
+    TubeInput,
     confirm_delete,
     get_compensation_point_input,
     confirm_clear_compensation,
 )
-from .dialog_contexts import EditMaterialContext
+from .dialog_contexts import EditTubeContext
 from .dialog_launcher import (
-    launch_material_dialog,
+    launch_tube_dialog,
     register_dialog_commands,
     unregister_dialog_commands,
 )
@@ -39,9 +39,9 @@ app: adsk.core.Application = adsk.core.Application.get()
 ui: adsk.core.UserInterface = app.userInterface
 
 # Command identity
-CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_manageMaterials'
-CMD_NAME = 'Manage Materials'
-CMD_DESCRIPTION = 'Add, edit, or remove tube materials and bender compensation data'
+CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_manageTubes'
+CMD_NAME = 'Manage Tubes'
+CMD_DESCRIPTION = 'Add, edit, or remove tube specifications and bender compensation data'
 IS_PROMOTED = False
 
 # UI placement
@@ -56,7 +56,7 @@ ICON_FOLDER = RESOURCE_FOLDER
 local_handlers: list[futil.FusionHandler] = []
 
 # Module-level state
-_material_manager: MaterialManager | None = None
+_tube_manager: TubeManager | None = None
 _profile_manager: ProfileManager | None = None
 _html_bridge: HTMLBridge | None = None
 _units: UnitConfig | None = None
@@ -64,14 +64,14 @@ _units: UnitConfig | None = None
 
 def start() -> None:
     """Initialize and register the command."""
-    global _material_manager, _profile_manager
+    global _tube_manager, _profile_manager
 
     # Initialize managers
     addin_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    _material_manager = MaterialManager(addin_path)
+    _tube_manager = TubeManager(addin_path)
     _profile_manager = ProfileManager(addin_path)
 
-    # Register hidden dialog commands for material editing
+    # Register hidden dialog commands for tube editing
     register_dialog_commands()
 
     # Register relaunch event for dialog reopening
@@ -108,7 +108,7 @@ def start() -> None:
 
 def stop() -> None:
     """Clean up the command."""
-    global _material_manager, _profile_manager, _html_bridge, _units, local_handlers
+    global _tube_manager, _profile_manager, _html_bridge, _units, local_handlers
 
     # Unregister relaunch event first
     stop_relaunch()
@@ -132,7 +132,7 @@ def stop() -> None:
     if cmd_def:
         cmd_def.deleteMe()
 
-    _material_manager = None
+    _tube_manager = None
     _profile_manager = None
     _html_bridge = None
     _units = None
@@ -159,10 +159,10 @@ def command_created(args: adsk.core.CommandCreatedEventArgs) -> None:
     cmd = args.command
     inputs = cmd.commandInputs
 
-    # Add HTML tree view for material management
-    html_url = os.path.join(RESOURCE_FOLDER, 'material_tree.html')
+    # Add HTML tree view for tube management
+    html_url = os.path.join(RESOURCE_FOLDER, 'tube_tree.html')
     browser_input = inputs.addBrowserCommandInput(
-        'materialTree', '', html_url, 300, 450
+        'tubeTree', '', html_url, 300, 450
     )
 
     # Initialize HTML bridge for communication (with units for value formatting)
@@ -178,19 +178,19 @@ def command_created(args: adsk.core.CommandCreatedEventArgs) -> None:
     futil.add_handler(cmd.incomingFromHTML, command_incoming_from_html, local_handlers=local_handlers)
     futil.add_handler(cmd.destroy, command_destroy, local_handlers=local_handlers)
 
-    # Send initial material data to HTML
-    if _material_manager:
-        futil.log(f'{CMD_NAME}: Pushing {len(_material_manager.materials)} materials to HTML on startup')
-        _html_bridge.send_materials(_material_manager.materials)
+    # Send initial tube data to HTML
+    if _tube_manager:
+        futil.log(f'{CMD_NAME}: Pushing {len(_tube_manager.tubes)} tubes to HTML on startup')
+        _html_bridge.send_tubes(_tube_manager.tubes)
 
 
 def command_incoming_from_html(args: adsk.core.HTMLEventArgs) -> None:
     """Handle incoming messages from the HTML tree view."""
-    global _html_bridge, _material_manager, _units
+    global _html_bridge, _tube_manager, _units
 
     futil.log(f'{CMD_NAME} HTML Event received: action={args.action}')
 
-    if not _html_bridge or not _material_manager or not _units:
+    if not _html_bridge or not _tube_manager or not _units:
         futil.log(f'{CMD_NAME} HTML Event: bridge/manager/units not ready')
         return
 
@@ -198,125 +198,131 @@ def command_incoming_from_html(args: adsk.core.HTMLEventArgs) -> None:
     futil.log(f'{CMD_NAME} HTML Event: {message}')
 
     try:
-        if message.action == 'requestMaterials':
-            # Send all materials to the HTML view
-            futil.log(f'{CMD_NAME}: Sending {len(_material_manager.materials)} materials to HTML')
-            _html_bridge.send_materials(_material_manager.materials)
+        if message.action == 'requestTubes':
+            # Send all tubes to the HTML view
+            futil.log(f'{CMD_NAME}: Sending {len(_tube_manager.tubes)} tubes to HTML')
+            _html_bridge.send_tubes(_tube_manager.tubes)
 
-        elif message.action == 'addMaterial':
-            _handle_add_material()
+        elif message.action == 'addTube':
+            _handle_add_tube()
 
-        elif message.action == 'editMaterial':
-            if message.material_id:
-                _handle_edit_material(message.material_id)
+        elif message.action == 'editTube':
+            if message.tube_id:
+                _handle_edit_tube(message.tube_id)
 
-        elif message.action == 'deleteMaterial':
-            if message.material_id:
-                _handle_delete_material(message.material_id)
+        elif message.action == 'deleteTube':
+            if message.tube_id:
+                _handle_delete_tube(message.tube_id)
 
         elif message.action == 'manageCompensation':
-            if message.material_id:
-                _handle_manage_compensation(message.material_id)
+            if message.tube_id:
+                _handle_manage_compensation(message.tube_id)
 
     except Exception:
         futil.handle_error('command_incoming_from_html')
 
 
-def _handle_add_material() -> None:
-    """Handle adding a new material via form dialog."""
-    if not _material_manager or not _units:
+def _handle_add_tube() -> None:
+    """Handle adding a new tube via form dialog."""
+    if not _tube_manager or not _units:
         return
 
-    context = EditMaterialContext(
-        material_id=None,
-        current_name="New Material",
+    context = EditTubeContext(
+        tube_id=None,
+        current_name="New Tube",
         current_tube_od=config.DEFAULT_TUBE_OD_CM,
+        current_wall_thickness=0.0,
+        current_material_type="",
         current_batch="",
         current_notes="",
     )
 
-    def on_complete(result: MaterialInput | None) -> None:
-        if result is None or not _material_manager:
+    def on_complete(result: TubeInput | None) -> None:
+        if result is None or not _tube_manager:
             return
-        new_material = _material_manager.add_material(
-            result.name, result.tube_od, result.batch, result.notes
+        new_tube = _tube_manager.add_tube(
+            result.name, result.tube_od, result.wall_thickness,
+            result.material_type, result.batch, result.notes
         )
         if _html_bridge:
-            _html_bridge.send_material_added(new_material)
+            _html_bridge.send_tube_added(new_tube)
 
-    launch_material_dialog(context, _units, on_complete)
+    launch_tube_dialog(context, _units, on_complete)
 
 
-def _handle_edit_material(material_id: str) -> None:
-    """Handle editing an existing material via form dialog."""
-    if not _material_manager or not _html_bridge or not _units:
+def _handle_edit_tube(tube_id: str) -> None:
+    """Handle editing an existing tube via form dialog."""
+    if not _tube_manager or not _html_bridge or not _units:
         return
 
-    material = _material_manager.get_material_by_id(material_id)
-    if not material:
+    tube = _tube_manager.get_tube_by_id(tube_id)
+    if not tube:
         return
 
-    context = EditMaterialContext(
-        material_id=material_id,
-        current_name=material.name,
-        current_tube_od=material.tube_od,
-        current_batch=material.batch,
-        current_notes=material.notes,
+    context = EditTubeContext(
+        tube_id=tube_id,
+        current_name=tube.name,
+        current_tube_od=tube.tube_od,
+        current_wall_thickness=tube.wall_thickness,
+        current_material_type=tube.material_type,
+        current_batch=tube.batch,
+        current_notes=tube.notes,
     )
 
-    def on_complete(result: MaterialInput | None) -> None:
-        if result is None or not _material_manager:
+    def on_complete(result: TubeInput | None) -> None:
+        if result is None or not _tube_manager:
             return
-        success = _material_manager.update_material(
-            material_id, result.name, result.tube_od, result.batch, result.notes
+        success = _tube_manager.update_tube(
+            tube_id, result.name, result.tube_od, result.wall_thickness,
+            result.material_type, result.batch, result.notes
         )
         if success and _html_bridge:
-            updated_material = _material_manager.get_material_by_id(material_id)
-            if updated_material:
-                _html_bridge.send_material_update(updated_material)
+            updated_tube = _tube_manager.get_tube_by_id(tube_id)
+            if updated_tube:
+                _html_bridge.send_tube_update(updated_tube)
 
-    launch_material_dialog(context, _units, on_complete)
+    launch_tube_dialog(context, _units, on_complete)
 
 
-def _handle_delete_material(material_id: str) -> None:
-    """Handle deleting a material."""
-    if not _material_manager or not _html_bridge:
+def _handle_delete_tube(tube_id: str) -> None:
+    """Handle deleting a tube."""
+    if not _tube_manager or not _html_bridge:
         return
 
-    material = _material_manager.get_material_by_id(material_id)
-    if not material:
+    tube = _tube_manager.get_tube_by_id(tube_id)
+    if not tube:
         return
 
-    if confirm_delete(ui, "material", material.name, include_children=True):
-        _material_manager.delete_material(material_id)
-        _html_bridge.send_material_removed(material_id)
+    if confirm_delete(ui, "tube", tube.name, include_children=True):
+        _tube_manager.delete_tube(tube_id)
+        _html_bridge.send_tube_removed(tube_id)
 
 
-def _handle_manage_compensation(material_id: str) -> None:
-    """Handle managing compensation data for a material.
+def _handle_manage_compensation(tube_id: str) -> None:
+    """Handle managing compensation data for a tube.
 
     Shows a dialog to select a compatible die, then allows managing
-    compensation data points for that die-material pair.
+    compensation data points for that die-tube pair.
     """
-    if not _material_manager or not _profile_manager or not _units:
+    if not _tube_manager or not _profile_manager or not _units:
         return
 
-    material = _material_manager.get_material_by_id(material_id)
-    if not material:
+    tube = _tube_manager.get_tube_by_id(tube_id)
+    if not tube:
         return
 
     # Find compatible dies (matching tube OD)
     compatible_dies: list[tuple[str, str, str]] = []  # (bender_name, die_id, die_name)
     for bender in _profile_manager.benders:
         for die in bender.dies:
-            if abs(die.tube_od - material.tube_od) < 0.01:  # 0.01cm tolerance
+            if abs(die.tube_od - tube.tube_od) < 0.01:  # 0.01cm tolerance
                 compatible_dies.append((bender.name, die.id, die.name))
 
     if not compatible_dies:
         ui.messageBox(
-            f'No compatible dies found for material "{material.name}".\n\n'
+            f'No compatible dies found for tube "{tube.name}".\n\n'
             f'To create compensation data, you need a die with matching '
-            f'tube OD ({material.tube_od * _units.cm_to_unit:.4f}{_units.unit_symbol}).\n\n'
+            f'tube OD ({tube.tube_od * _units.cm_to_unit:.4f}{_units.unit_symbol}).\n\n'
             f'Use "Manage Benders" to create dies with this tube OD.',
             'No Compatible Dies'
         )
@@ -325,7 +331,7 @@ def _handle_manage_compensation(material_id: str) -> None:
     # If only one compatible die, use it directly
     if len(compatible_dies) == 1:
         bender_name, die_id, die_name = compatible_dies[0]
-        _show_compensation_dialog(material, die_id, f"{bender_name} - {die_name}")
+        _show_compensation_dialog(tube, die_id, f"{bender_name} - {die_name}")
         return
 
     # Multiple dies - let user select
@@ -334,7 +340,7 @@ def _handle_manage_compensation(material_id: str) -> None:
 
     if selected_index is not None and 0 <= selected_index < len(compatible_dies):
         bender_name, die_id, die_name = compatible_dies[selected_index]
-        _show_compensation_dialog(material, die_id, f"{bender_name} - {die_name}")
+        _show_compensation_dialog(tube, die_id, f"{bender_name} - {die_name}")
 
 
 def _show_die_selection_dialog(die_names: list[str]) -> int | None:
@@ -362,7 +368,7 @@ def _show_die_selection_dialog(die_names: list[str]) -> int | None:
 
 
 def _show_compensation_dialog(
-    material: Material,
+    tube: Tube,
     die_id: str,
     die_display_name: str,
 ) -> None:
@@ -370,12 +376,12 @@ def _show_compensation_dialog(
 
     This uses a simple menu-based approach for managing data points.
     """
-    if not _material_manager:
+    if not _tube_manager:
         return
 
     while True:
         # Get current compensation data
-        comp = _material_manager.get_or_create_compensation(die_id, material.id)
+        comp = _tube_manager.get_or_create_compensation(die_id, tube.id)
         points = comp.data_points
 
         # Build status message
@@ -392,7 +398,7 @@ def _show_compensation_dialog(
         message = (
             f"Bender Compensation Data\n"
             f"{'='*40}\n"
-            f"Material: {material.name}\n"
+            f"Tube: {tube.name}\n"
             f"Die: {die_display_name}\n\n"
             f"{status}\n\n"
             f"Options:\n"
@@ -410,27 +416,27 @@ def _show_compensation_dialog(
         option = ret_value.strip()
 
         if option == "1":
-            _add_compensation_point(die_id, material.id)
+            _add_compensation_point(die_id, tube.id)
         elif option == "2":
-            _remove_compensation_point(die_id, material.id, len(points))
+            _remove_compensation_point(die_id, tube.id, len(points))
         elif option == "3":
-            _clear_compensation_data(die_id, material, die_display_name)
+            _clear_compensation_data(die_id, tube, die_display_name)
         elif option == "4":
             return
         else:
             ui.messageBox("Invalid option. Please enter 1-4.", "Error")
 
 
-def _add_compensation_point(die_id: str, material_id: str) -> None:
+def _add_compensation_point(die_id: str, tube_id: str) -> None:
     """Add a compensation data point."""
-    if not _material_manager:
+    if not _tube_manager:
         return
 
     point = get_compensation_point_input(ui)
     if point:
         try:
-            _material_manager.add_compensation_point(
-                die_id, material_id, point.readout_angle, point.measured_angle
+            _tube_manager.add_compensation_point(
+                die_id, tube_id, point.readout_angle, point.measured_angle
             )
             ui.messageBox(
                 f"Added compensation point:\n"
@@ -442,9 +448,9 @@ def _add_compensation_point(die_id: str, material_id: str) -> None:
             ui.messageBox(str(e), "Error")
 
 
-def _remove_compensation_point(die_id: str, material_id: str, count: int) -> None:
+def _remove_compensation_point(die_id: str, tube_id: str, count: int) -> None:
     """Remove a compensation data point by index."""
-    if not _material_manager or count == 0:
+    if not _tube_manager or count == 0:
         ui.messageBox("No data points to remove.", "Error")
         return
 
@@ -459,7 +465,7 @@ def _remove_compensation_point(die_id: str, material_id: str, count: int) -> Non
     try:
         index = int(ret_value.strip()) - 1
         if 0 <= index < count:
-            if _material_manager.remove_compensation_point(die_id, material_id, index):
+            if _tube_manager.remove_compensation_point(die_id, tube_id, index):
                 ui.messageBox("Point removed.", "Success")
             else:
                 ui.messageBox("Failed to remove point.", "Error")
@@ -471,15 +477,15 @@ def _remove_compensation_point(die_id: str, material_id: str, count: int) -> Non
 
 def _clear_compensation_data(
     die_id: str,
-    material: Material,
+    tube: Tube,
     die_display_name: str,
 ) -> None:
-    """Clear all compensation data for a die-material pair."""
-    if not _material_manager:
+    """Clear all compensation data for a die-tube pair."""
+    if not _tube_manager:
         return
 
-    if confirm_clear_compensation(ui, die_display_name, material.name):
-        _material_manager.clear_compensation_data(die_id, material.id)
+    if confirm_clear_compensation(ui, die_display_name, tube.name):
+        _tube_manager.clear_compensation_data(die_id, tube.id)
         ui.messageBox("All compensation data cleared.", "Cleared")
 
 

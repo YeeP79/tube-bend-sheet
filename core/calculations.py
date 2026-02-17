@@ -36,7 +36,6 @@ from .geometry import (
     distance_between_points,
     ZERO_MAGNITUDE_TOLERANCE,
 )
-from .path_analysis import get_sketch_entity_endpoints
 from .tolerances import CLR_RATIO, CLR_MIN_FLOOR
 
 if TYPE_CHECKING:
@@ -92,7 +91,7 @@ def validate_clr_consistency(
 
 
 def calculate_straights_and_bends(
-    lines: list['adsk.fusion.SketchLine'],
+    line_endpoints: list[tuple[Point3D, Point3D]],
     arcs: list['adsk.fusion.SketchArc'],
     path_start: Point3D,
     clr: float,
@@ -104,7 +103,7 @@ def calculate_straights_and_bends(
     Calculate all straight sections and bend data from geometry.
 
     Args:
-        lines: Ordered list of sketch lines
+        line_endpoints: Ordered list of (start, end) point tuples for each line
         arcs: Ordered list of sketch arcs
         path_start: The starting point of the path (in cm)
         clr: Center line radius in display units
@@ -115,11 +114,8 @@ def calculate_straights_and_bends(
     Returns:
         Tuple of (straights, bends) with lengths in display units
     """
-    # Get line endpoints and orient them correctly
-    line_points: list[tuple[Point3D, Point3D]] = []
-    for line in lines:
-        start, end = get_sketch_entity_endpoints(line)
-        line_points.append((start, end))
+    # Use line endpoints directly
+    line_points: list[tuple[Point3D, Point3D]] = list(line_endpoints)
 
     # Handle single-arc path (no lines) - valid for arc-only bend sheets
     if not line_points:

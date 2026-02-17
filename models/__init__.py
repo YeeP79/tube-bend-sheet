@@ -9,7 +9,7 @@ from .bend_data import (
     BendSheetData,
 )
 from .compensation import CompensationDataPoint, DieMaterialCompensation
-from .material import Material
+from .tube import Tube, MATERIAL_TYPES
 from .types import Vector3D, Point3D, ElementType, SegmentType
 from .units import UnitConfig
 
@@ -26,8 +26,9 @@ __all__ = [
     # Compensation models
     'CompensationDataPoint',
     'DieMaterialCompensation',
-    # Material model
-    'Material',
+    # Tube model
+    'Tube',
+    'MATERIAL_TYPES',
     # Type aliases
     'Vector3D',
     'Point3D',

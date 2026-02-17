@@ -1,4 +1,4 @@
-"""Dialog launcher for material/compensation edit dialogs.
+"""Dialog launcher for tube/compensation edit dialogs.
 
 This module provides convenience functions to launch the form dialogs
 with context and callbacks.
@@ -9,32 +9,32 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from ...models import UnitConfig
-from .dialog_contexts import EditMaterialContext
-from .input_dialogs import MaterialInput
-from . import edit_material_dialog
+from .dialog_contexts import EditTubeContext
+from .input_dialogs import TubeInput
+from . import edit_tube_dialog
 
 
-def launch_material_dialog(
-    context: EditMaterialContext,
+def launch_tube_dialog(
+    context: EditTubeContext,
     units: UnitConfig,
-    on_complete: Callable[[MaterialInput | None], None],
+    on_complete: Callable[[TubeInput | None], None],
 ) -> None:
-    """Launch the material edit dialog.
+    """Launch the tube edit dialog.
 
     Args:
         context: Pre-populated values for the form
         units: Unit configuration for display
         on_complete: Callback with result (None if cancelled)
     """
-    edit_material_dialog.set_context(context, units, on_complete)
-    edit_material_dialog.launch()
+    edit_tube_dialog.set_context(context, units, on_complete)
+    edit_tube_dialog.launch()
 
 
 def register_dialog_commands() -> None:
     """Register hidden dialog commands. Call from main entry start()."""
-    edit_material_dialog.register_command()
+    edit_tube_dialog.register_command()
 
 
 def unregister_dialog_commands() -> None:
     """Unregister dialog commands. Call from main entry stop()."""
-    edit_material_dialog.unregister_command()
+    edit_tube_dialog.unregister_command()
