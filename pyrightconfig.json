@@ -3,6 +3,7 @@
     "exclude": [
         "**/__pycache__",
         "**/node_modules",
+        "commands/",
         "lib/",
         "tests/",
         "typings/"

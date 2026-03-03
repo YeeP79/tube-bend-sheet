@@ -1,4 +1,4 @@
-"""Shared type definitions for TubeBendSheet.
+"""Shared type definitions for TubeFabrication.
 
 This module provides common type aliases and Literal types used
 throughout the codebase to ensure type safety and consistency.

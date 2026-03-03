@@ -1,7 +1,7 @@
 [project]
-name = "TubeBendSheet"
+name = "TubeFabrication"
 version = "1.0.0"
-description = "Autodesk Fusion 360 add-in for tube bend calculations"
+description = "Autodesk Fusion 360 add-in for tube fabrication tools"
 requires-python = ">=3.10"
 
 [tool.mypy]
@@ -45,6 +45,7 @@ reportMissingImports = false
 # Exclude directories that are Fusion-runtime-only or third-party
 exclude = [
     "**/__pycache__",
+    "commands/",      # Fusion-runtime-only command handlers
     "lib/",           # Third-party Fusion utilities
     "tests/",         # Test files with pytest imports
     "typings/",       # Type stubs (not source code)

@@ -3,11 +3,11 @@
 	"type": "addin",
 	"author": "",
 	"description": {
-		"": "Calculate multi-plane tube bend rotations and generate printable bend sheets from sketch geometry."
+		"": "Tube fabrication tools: bend rotation calculator with printable bend sheets, and cope calculator with SVG wrap templates."
 	},
 	"version": "1.0.0",
 	"runOnStartup": false,
 	"supportedOS": "windows|mac",
 	"editEnabled": true,
-	"iconFilename": "TubeBendSheet.svg"
+	"iconFilename": "TubeFabrication.svg"
 }

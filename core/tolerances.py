@@ -37,3 +37,24 @@ TUBE_OD_MATCH_CM: float = 0.01
 # Collinearity angle tolerance (in degrees)
 # Lines within this angle are considered truly collinear (floating point tolerance only)
 COLLINEAR_ANGLE_DEG: float = 0.01
+
+# --- Cope calculation tolerances ---
+
+# Valley depth as fraction of OD that triggers multi-pass detection.
+# Below this threshold, valleys between lobes are considered noise.
+VALLEY_DEPTH_OD_RATIO: float = 0.15
+
+# Angular separation (degrees) below which two close lobes could
+# potentially be handled as a single pass.
+LOBE_COLLAPSE_DEGREES: float = 30.0
+
+# Included angle (degrees) below which the cope is too acute for
+# reliable notcher work and Method C (grinder) is recommended.
+ACUTE_ANGLE_LIMIT: float = 25.0
+
+# Holesaw depth (inches) above which the notcher cannot complete
+# the pass and Method C is forced.
+MAX_HOLESAW_DEPTH: float = 4.0
+
+# Clearance added to plunge depth for non-pass-through cuts (inches).
+HOLESAW_CLEARANCE: float = 0.03

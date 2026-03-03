@@ -165,6 +165,46 @@ def points_are_close(p1: Point3D, p2: Point3D,
     return distance_between_points(p1, p2) <= tolerance
 
 
+def normalize(v: Vector3D) -> Vector3D:
+    """
+    Normalize a vector to unit length.
+
+    Args:
+        v: Vector (x, y, z)
+
+    Returns:
+        Unit vector in the same direction
+
+    Raises:
+        ZeroVectorError: If vector has zero or near-zero length
+    """
+    mag = magnitude(v)
+    if mag < ZERO_MAGNITUDE:
+        raise ZeroVectorError(f"Cannot normalize zero-length vector: {v}")
+    return (v[0] / mag, v[1] / mag, v[2] / mag)
+
+
+def project_onto_plane(v: Vector3D, plane_normal: Vector3D) -> Vector3D:
+    """
+    Project vector v onto the plane defined by plane_normal.
+
+    Removes the component of v that is parallel to plane_normal.
+
+    Args:
+        v: Vector to project
+        plane_normal: Normal vector of the plane (does not need to be unit length)
+
+    Returns:
+        The component of v lying in the plane
+
+    Raises:
+        ZeroVectorError: If plane_normal has zero length
+    """
+    n = normalize(plane_normal)
+    d = dot_product(v, n)
+    return (v[0] - d * n[0], v[1] - d * n[1], v[2] - d * n[2])
+
+
 def vectors_are_collinear(
     v1: Vector3D,
     v2: Vector3D,

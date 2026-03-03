@@ -19,7 +19,7 @@ COMPANY_NAME = 'Custom'
 
 # Panel configuration - custom panel in Tools tab
 PANEL_ID = f'{COMPANY_NAME}_{ADDIN_NAME}_Panel'
-PANEL_NAME = 'Tube Bending'
+PANEL_NAME = 'Tube Fabrication'
 TAB_ID = 'ToolsTab'
 WORKSPACE_ID = 'FusionSolidEnvironment'
 

@@ -14,6 +14,7 @@ from .bend_data import (
     SheetWarnings,
 )
 from .compensation import CompensationDataPoint, DieMaterialCompensation
+from .cope_data import ReceivingTube, CopePass, CopeResult
 from .tube import Tube, MATERIAL_TYPES
 from .types import Vector3D, Point3D, ElementType, SegmentType
 from .units import UnitConfig
@@ -37,6 +38,10 @@ __all__ = [
     # Compensation models
     'CompensationDataPoint',
     'DieMaterialCompensation',
+    # Cope data models
+    'ReceivingTube',
+    'CopePass',
+    'CopeResult',
     # Tube model
     'Tube',
     'MATERIAL_TYPES',

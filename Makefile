@@ -1,4 +1,4 @@
-# TubeBendSheet Development Tasks
+# TubeFabrication Development Tasks
 # Usage: make <target>
 
 .PHONY: check lint typecheck test validate package clean-package
@@ -28,12 +28,12 @@ validate: check lint test
 
 # Clean previous package
 clean-package:
-	@rm -f TubeBendSheet.zip
+	@rm -f TubeFabrication.zip
 
 # Create distribution zip for App Store submission
 package: clean-package
-	@echo "Creating TubeBendSheet.zip..."
-	@zip -r TubeBendSheet.zip . \
+	@echo "Creating TubeFabrication.zip..."
+	@zip -r TubeFabrication.zip . \
 		-x ".*" \
 		-x "*/.*" \
 		-x "__pycache__/*" \
@@ -45,6 +45,6 @@ package: clean-package
 		-x "pyproject.toml" \
 		-x "pyrightconfig.json" \
 		-x "CLAUDE.md" \
-		-x "TubeBendSheet.zip"
-	@echo "Created TubeBendSheet.zip"
-	@unzip -l TubeBendSheet.zip | tail -1
+		-x "TubeFabrication.zip"
+	@echo "Created TubeFabrication.zip"
+	@unzip -l TubeFabrication.zip | tail -1

@@ -5,6 +5,8 @@ Run with: pytest tests/ -v
 """
 import math
 
+import pytest
+
 from core.geometry import (
     ZeroVectorError,
     angle_between_vectors,
@@ -13,7 +15,9 @@ from core.geometry import (
     distance_between_points,
     dot_product,
     magnitude,
+    normalize,
     points_are_close,
+    project_onto_plane,
     vectors_are_collinear,
 )
 
@@ -210,3 +214,83 @@ class TestVectorsAreCollinear:
         """Near-zero vector doesn't crash."""
         result = vectors_are_collinear((1e-11, 0.0, 0.0), (1.0, 0.0, 0.0))
         assert result is False  # Below zero magnitude tolerance
+
+
+class TestNormalize:
+    """Test normalize() function."""
+
+    def test_unit_vector_unchanged(self):
+        result = normalize((1.0, 0.0, 0.0))
+        assert abs(result[0] - 1.0) < 1e-10
+        assert abs(result[1]) < 1e-10
+        assert abs(result[2]) < 1e-10
+
+    def test_scales_to_unit_length(self):
+        result = normalize((3.0, 4.0, 0.0))
+        assert abs(magnitude(result) - 1.0) < 1e-10
+        assert abs(result[0] - 0.6) < 1e-10
+        assert abs(result[1] - 0.8) < 1e-10
+
+    def test_negative_components(self):
+        result = normalize((-3.0, -4.0, 0.0))
+        assert abs(magnitude(result) - 1.0) < 1e-10
+        assert abs(result[0] - (-0.6)) < 1e-10
+        assert abs(result[1] - (-0.8)) < 1e-10
+
+    def test_3d_vector(self):
+        result = normalize((1.0, 1.0, 1.0))
+        expected = 1.0 / math.sqrt(3.0)
+        for comp in result:
+            assert abs(comp - expected) < 1e-10
+
+    def test_zero_vector_raises(self):
+        with pytest.raises(ZeroVectorError):
+            normalize((0.0, 0.0, 0.0))
+
+    def test_near_zero_vector_raises(self):
+        with pytest.raises(ZeroVectorError):
+            normalize((1e-11, 0.0, 0.0))
+
+
+class TestProjectOntoPlane:
+    """Test project_onto_plane() function."""
+
+    def test_vector_already_in_plane(self):
+        """Vector in XY plane projected onto XY plane is unchanged."""
+        result = project_onto_plane((1.0, 2.0, 0.0), (0.0, 0.0, 1.0))
+        assert abs(result[0] - 1.0) < 1e-10
+        assert abs(result[1] - 2.0) < 1e-10
+        assert abs(result[2]) < 1e-10
+
+    def test_vector_perpendicular_to_plane(self):
+        """Vector along plane normal projects to zero."""
+        result = project_onto_plane((0.0, 0.0, 5.0), (0.0, 0.0, 1.0))
+        assert abs(result[0]) < 1e-10
+        assert abs(result[1]) < 1e-10
+        assert abs(result[2]) < 1e-10
+
+    def test_45_degree_projection(self):
+        """Vector at 45 degrees to plane normal."""
+        result = project_onto_plane((1.0, 0.0, 1.0), (0.0, 0.0, 1.0))
+        assert abs(result[0] - 1.0) < 1e-10
+        assert abs(result[1]) < 1e-10
+        assert abs(result[2]) < 1e-10
+
+    def test_non_unit_normal(self):
+        """Works with non-unit plane normal."""
+        result = project_onto_plane((1.0, 0.0, 1.0), (0.0, 0.0, 3.0))
+        assert abs(result[0] - 1.0) < 1e-10
+        assert abs(result[1]) < 1e-10
+        assert abs(result[2]) < 1e-10
+
+    def test_3d_projection(self):
+        """Projection onto arbitrary plane in 3D."""
+        # Project (1,1,1) onto plane with normal (1,0,0) -> (0,1,1)
+        result = project_onto_plane((1.0, 1.0, 1.0), (1.0, 0.0, 0.0))
+        assert abs(result[0]) < 1e-10
+        assert abs(result[1] - 1.0) < 1e-10
+        assert abs(result[2] - 1.0) < 1e-10
+
+    def test_zero_normal_raises(self):
+        with pytest.raises(ZeroVectorError):
+            project_onto_plane((1.0, 0.0, 0.0), (0.0, 0.0, 0.0))

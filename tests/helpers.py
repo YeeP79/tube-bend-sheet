@@ -1,5 +1,5 @@
 """
-Shared test helpers for TubeBendSheet tests.
+Shared test helpers for TubeFabrication tests.
 
 This module contains mock classes and utilities used across multiple test files.
 """

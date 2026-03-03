@@ -4,6 +4,8 @@ from .geometry import (
     cross_product,
     dot_product,
     magnitude,
+    normalize,
+    project_onto_plane,
     angle_between_vectors,
     calculate_rotation,
     distance_between_points,
@@ -57,6 +59,20 @@ from .tolerances import (
     CLR_MATCH_DISPLAY,
     TUBE_OD_MATCH_CM,
     COLLINEAR_ANGLE_DEG,
+    VALLEY_DEPTH_OD_RATIO,
+    LOBE_COLLAPSE_DEGREES,
+    ACUTE_ANGLE_LIMIT,
+    MAX_HOLESAW_DEPTH,
+    HOLESAW_CLEARANCE,
+)
+from .cope_math import calculate_cope
+from .cope_template import generate_cope_svg
+from .conventions import (
+    ROTATION_REFERENCE,
+    ROTATION_DIRECTION,
+    ROTATION_ZERO_DESCRIPTION,
+    ROTATION_ZERO_STRAIGHT_DESCRIPTION,
+    MIN_STRAIGHT_BEFORE_END_OD_RATIO,
 )
 
 __all__ = [
@@ -64,6 +80,8 @@ __all__ = [
     'cross_product',
     'dot_product',
     'magnitude',
+    'normalize',
+    'project_onto_plane',
     'angle_between_vectors',
     'calculate_rotation',
     'distance_between_points',
@@ -109,4 +127,18 @@ __all__ = [
     'CLR_MATCH_DISPLAY',
     'TUBE_OD_MATCH_CM',
     'COLLINEAR_ANGLE_DEG',
+    'VALLEY_DEPTH_OD_RATIO',
+    'LOBE_COLLAPSE_DEGREES',
+    'ACUTE_ANGLE_LIMIT',
+    'MAX_HOLESAW_DEPTH',
+    'HOLESAW_CLEARANCE',
+    # Cope math
+    'calculate_cope',
+    'generate_cope_svg',
+    # Conventions
+    'ROTATION_REFERENCE',
+    'ROTATION_DIRECTION',
+    'ROTATION_ZERO_DESCRIPTION',
+    'ROTATION_ZERO_STRAIGHT_DESCRIPTION',
+    'MIN_STRAIGHT_BEFORE_END_OD_RATIO',
 ]

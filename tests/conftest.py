@@ -1,20 +1,20 @@
 """
-Pytest configuration for TubeBendSheet tests.
+Pytest configuration for TubeFabrication tests.
 
 This conftest.py sets up the Python path and module aliases so that tests can
 import project modules using simple names (e.g., `from core.x import y`) while
 the production code uses relative imports for Fusion 360 compatibility.
 
 How it works:
-1. Adds the parent of TubeBendSheet to sys.path
-2. Imports TubeBendSheet as a package (triggering __init__.py)
-3. Creates module aliases so `import core` resolves to `TubeBendSheet.core`
+1. Adds the parent of TubeFabrication to sys.path
+2. Imports TubeFabrication as a package (triggering __init__.py)
+3. Creates module aliases so `import core` resolves to `TubeFabrication.core`
 """
 import sys
 from pathlib import Path
 
-# Add the parent directory of TubeBendSheet to sys.path
-# This allows `import TubeBendSheet` to work
+# Add the parent directory of TubeFabrication to sys.path
+# This allows `import TubeFabrication` to work
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root.parent))
 
@@ -24,15 +24,19 @@ sys.path.insert(0, str(project_root))
 # Import package submodules and create aliases
 # This allows tests to use simple imports like `from core.x import y`
 # while the production code uses relative imports for Fusion 360 compatibility
-import TubeBendSheet.core as core
-import TubeBendSheet.core.compensation as _core_compensation
-import TubeBendSheet.core.tolerances as _core_tolerances
-import TubeBendSheet.core.protocols as _core_protocols
-import TubeBendSheet.models as models
-import TubeBendSheet.models.tube as _models_tube
-import TubeBendSheet.models.compensation as _models_compensation
-import TubeBendSheet.models.constants as _models_constants
-import TubeBendSheet.storage as storage
+import TubeFabrication.core as core
+import TubeFabrication.core.compensation as _core_compensation
+import TubeFabrication.core.tolerances as _core_tolerances
+import TubeFabrication.core.protocols as _core_protocols
+import TubeFabrication.core.conventions as _core_conventions
+import TubeFabrication.core.cope_math as _core_cope_math
+import TubeFabrication.core.cope_template as _core_cope_template
+import TubeFabrication.models as models
+import TubeFabrication.models.cope_data as _models_cope_data
+import TubeFabrication.models.tube as _models_tube
+import TubeFabrication.models.compensation as _models_compensation
+import TubeFabrication.models.constants as _models_constants
+import TubeFabrication.storage as storage
 
 sys.modules['core'] = core
 sys.modules['models'] = models
@@ -50,6 +54,9 @@ sys.modules['core.direction_validation'] = core.direction_validation
 sys.modules['core.compensation'] = _core_compensation
 sys.modules['core.tolerances'] = _core_tolerances
 sys.modules['core.protocols'] = _core_protocols
+sys.modules['core.conventions'] = _core_conventions
+sys.modules['core.cope_math'] = _core_cope_math
+sys.modules['core.cope_template'] = _core_cope_template
 
 sys.modules['models.bender'] = models.bender
 sys.modules['models.bend_data'] = models.bend_data
@@ -58,9 +65,10 @@ sys.modules['models.units'] = models.units
 sys.modules['models.tube'] = _models_tube
 sys.modules['models.compensation'] = _models_compensation
 sys.modules['models.constants'] = _models_constants
+sys.modules['models.cope_data'] = _models_cope_data
 
 sys.modules['storage.profiles'] = storage.profiles
 
 # Import and alias test helpers module
-import TubeBendSheet.tests.helpers as helpers
+import TubeFabrication.tests.helpers as helpers
 sys.modules['helpers'] = helpers

@@ -5,12 +5,14 @@
 from .createBendSheet import entry as createBendSheet
 from .manageBenders import entry as manageBenders
 from .manageTubes import entry as manageTubes
+from .copeCalculator import entry as copeCalculator
 
 # Fusion will automatically call the start() and stop() functions.
 commands = [
     createBendSheet,
     manageBenders,
     manageTubes,
+    copeCalculator,
 ]
 
 
