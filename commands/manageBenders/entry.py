@@ -151,7 +151,8 @@ def command_created(args: adsk.core.CommandCreatedEventArgs) -> None:
     inputs = cmd.commandInputs
 
     # Add HTML tree view for bender management
-    html_url = os.path.join(RESOURCE_FOLDER, 'bender_tree.html')
+    html_path = os.path.join(RESOURCE_FOLDER, 'bender_tree.html')
+    html_url = f'file://{html_path}' if not html_path.startswith('file:') else html_path
     browser_input = inputs.addBrowserCommandInput(
         'benderTree', '', html_url, 300, 500
     )

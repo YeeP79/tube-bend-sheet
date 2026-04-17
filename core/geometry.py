@@ -205,6 +205,87 @@ def project_onto_plane(v: Vector3D, plane_normal: Vector3D) -> Vector3D:
     return (v[0] - d * n[0], v[1] - d * n[1], v[2] - d * n[2])
 
 
+def subtract_vectors(v1: Vector3D, v2: Vector3D) -> Vector3D:
+    """Subtract v2 from v1 component-wise.
+
+    Args:
+        v1: First vector.
+        v2: Second vector.
+
+    Returns:
+        (v1 - v2) as a Vector3D.
+    """
+    return (v1[0] - v2[0], v1[1] - v2[1], v1[2] - v2[2])
+
+
+def add_vectors(v1: Vector3D, v2: Vector3D) -> Vector3D:
+    """Add two vectors component-wise.
+
+    Args:
+        v1: First vector.
+        v2: Second vector.
+
+    Returns:
+        (v1 + v2) as a Vector3D.
+    """
+    return (v1[0] + v2[0], v1[1] + v2[1], v1[2] + v2[2])
+
+
+def scale_vector(v: Vector3D, scalar: float) -> Vector3D:
+    """Scale a vector by a scalar factor.
+
+    Args:
+        v: Vector to scale.
+        scalar: Scale factor.
+
+    Returns:
+        Scaled vector.
+    """
+    return (v[0] * scalar, v[1] * scalar, v[2] * scalar)
+
+
+def point_to_line_distance(
+    point: Point3D,
+    line_origin: Point3D,
+    line_direction: Vector3D,
+) -> float:
+    """Distance from a point to an infinite line.
+
+    Args:
+        point: The query point.
+        line_origin: A point on the line.
+        line_direction: Normalized direction of the line.
+
+    Returns:
+        Perpendicular distance from the point to the line.
+    """
+    v = subtract_vectors(point, line_origin)
+    proj = dot_product(v, line_direction)
+    closest = add_vectors(line_origin, scale_vector(line_direction, proj))
+    return distance_between_points(point, closest)
+
+
+def unsigned_angle_between(v1: Vector3D, v2: Vector3D) -> float:
+    """Angle between two vectors, treating parallel and anti-parallel the same.
+
+    Returns an angle in degrees in the range [0, 90].
+
+    Args:
+        v1: First vector.
+        v2: Second vector.
+
+    Returns:
+        Unsigned angle in degrees (0-90).
+
+    Raises:
+        ZeroVectorError: If either vector has zero length.
+    """
+    mag_product = _safe_magnitude_product(v1, v2)
+    cos_angle: float = dot_product(v1, v2) / mag_product
+    cos_angle = max(-1.0, min(1.0, cos_angle))
+    return math.degrees(math.acos(abs(cos_angle)))
+
+
 def vectors_are_collinear(
     v1: Vector3D,
     v2: Vector3D,

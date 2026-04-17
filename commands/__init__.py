@@ -2,17 +2,17 @@
 
 # Import the modules corresponding to the commands.
 # To add a new command, duplicate an existing directory and import it here.
-from .createBendSheet import entry as createBendSheet
+# from .createBendSheet import entry as createBendSheet  # Hidden: replaced by tubeFabrication
 from .manageBenders import entry as manageBenders
 from .manageTubes import entry as manageTubes
-from .copeCalculator import entry as copeCalculator
+from .tubeFabrication import entry as tubeFabrication
 
 # Fusion will automatically call the start() and stop() functions.
 commands = [
-    createBendSheet,
+    # createBendSheet,  # Hidden: replaced by tubeFabrication
     manageBenders,
     manageTubes,
-    copeCalculator,
+    tubeFabrication,
 ]
 
 

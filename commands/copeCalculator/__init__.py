@@ -1,1 +1,0 @@
-"""Cope Calculator command module."""

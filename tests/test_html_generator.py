@@ -489,3 +489,46 @@ class TestProcedureCutInstructions:
         assert "from start of tube" in html
         # Should NOT have end cut
         assert "from end of tube" not in html
+
+
+class TestCopeReferenceMarks:
+    """Test cope reference mark instruction in procedure section."""
+
+    def test_cope_reference_marks_present(
+        self, minimal_bend_sheet_data: BendSheetData
+    ) -> None:
+        """Reference mark instruction appears when bends exist."""
+        html = generate_html_bend_sheet(minimal_bend_sheet_data)
+        assert "Before Bend #1" in html
+        assert "reference lines" in html
+        assert "extrados" in html
+
+    def test_cope_reference_marks_absent_no_bends(
+        self, imperial_units: UnitConfig
+    ) -> None:
+        """Reference mark instruction absent when no bends."""
+        data = BendSheetData.from_groups(
+            tooling=ToolingInfo(component_name="Straight Tube"),
+            geometry=GeometrySpecs(
+                tube_od=1.5, clr=4.5, die_offset=0.5,
+                precision=16, units=imperial_units, clr_values=[4.5],
+            ),
+            path=PathData(
+                straights=[
+                    StraightSection(1, 10.0, (0, 0, 0), (10, 0, 0), (10, 0, 0)),
+                ],
+                bends=[],
+                segments=[
+                    PathSegment('straight', 'Straight 1', 10.0, 0.0, 10.0, None, None),
+                ],
+                mark_positions=[],
+                total_centerline=10.0,
+                total_cut_length=10.0,
+                travel_direction="Left to Right",
+            ),
+            material=MaterialInfo(min_grip=6.0, extra_material=0.0),
+            warnings=SheetWarnings(),
+        )
+        html = generate_html_bend_sheet(data)
+        assert "Before Bend #1" not in html
+        assert "reference lines" not in html

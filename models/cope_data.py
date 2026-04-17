@@ -27,6 +27,7 @@ class CopePass:
     dominant: bool
     holesaw_depth_required: float
     holesaw_warning: str | None = None
+    receiver_name: str = ""
 
 
 @dataclass(slots=True)
@@ -40,3 +41,4 @@ class CopeResult:
     has_bend_reference: bool = False
     reference_description: str = ""
     warnings: list[str] = field(default_factory=list)
+    all_receiver_names: list[str] = field(default_factory=list)

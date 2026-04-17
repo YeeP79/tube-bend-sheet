@@ -31,8 +31,16 @@ import TubeFabrication.core.protocols as _core_protocols
 import TubeFabrication.core.conventions as _core_conventions
 import TubeFabrication.core.cope_math as _core_cope_math
 import TubeFabrication.core.cope_template as _core_cope_template
+import TubeFabrication.core.cope_path as _core_cope_path
+import TubeFabrication.core.combined_output as _core_combined_output
+import TubeFabrication.core.body_profile as _core_body_profile
+import TubeFabrication.core.body_path as _core_body_path
+import TubeFabrication.core.sketch_matching as _core_sketch_matching
 import TubeFabrication.models as models
 import TubeFabrication.models.cope_data as _models_cope_data
+import TubeFabrication.models.cope_input as _models_cope_input
+import TubeFabrication.models.body_path_data as _models_body_path_data
+import TubeFabrication.models.match_data as _models_match_data
 import TubeFabrication.models.tube as _models_tube
 import TubeFabrication.models.compensation as _models_compensation
 import TubeFabrication.models.constants as _models_constants
@@ -57,6 +65,11 @@ sys.modules['core.protocols'] = _core_protocols
 sys.modules['core.conventions'] = _core_conventions
 sys.modules['core.cope_math'] = _core_cope_math
 sys.modules['core.cope_template'] = _core_cope_template
+sys.modules['core.cope_path'] = _core_cope_path
+sys.modules['core.combined_output'] = _core_combined_output
+sys.modules['core.body_profile'] = _core_body_profile
+sys.modules['core.body_path'] = _core_body_path
+sys.modules['core.sketch_matching'] = _core_sketch_matching
 
 sys.modules['models.bender'] = models.bender
 sys.modules['models.bend_data'] = models.bend_data
@@ -66,6 +79,9 @@ sys.modules['models.tube'] = _models_tube
 sys.modules['models.compensation'] = _models_compensation
 sys.modules['models.constants'] = _models_constants
 sys.modules['models.cope_data'] = _models_cope_data
+sys.modules['models.cope_input'] = _models_cope_input
+sys.modules['models.body_path_data'] = _models_body_path_data
+sys.modules['models.match_data'] = _models_match_data
 
 sys.modules['storage.profiles'] = storage.profiles
 

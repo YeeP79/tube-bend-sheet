@@ -161,7 +161,8 @@ def command_created(args: adsk.core.CommandCreatedEventArgs) -> None:
     inputs = cmd.commandInputs
 
     # Add HTML tree view for tube management
-    html_url = os.path.join(RESOURCE_FOLDER, 'tube_tree.html')
+    html_path = os.path.join(RESOURCE_FOLDER, 'tube_tree.html')
+    html_url = f'file://{html_path}' if not html_path.startswith('file:') else html_path
     browser_input = inputs.addBrowserCommandInput(
         'tubeTree', '', html_url, 300, 450
     )

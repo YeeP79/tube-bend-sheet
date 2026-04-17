@@ -303,6 +303,13 @@ def _generate_procedure(data: BendSheetData) -> str:
             html += f"<li>Note: First {format_length(start_cut, precision, units)} "
             html += "is extra material (cut off after bending)</li>\n"
 
+    # Cope reference mark instruction (before first bend)
+    if data.bends:
+        html += '<li style="color: #155724; font-weight: bold;">'
+        html += 'Before Bend #1: Mark \u00bd" reference lines at each tube end '
+        html += 'on the back-of-die (extrados) side \u2014 for cope template alignment'
+        html += '</li>\n'
+
     for mp in data.mark_positions:
         if mp.rotation is not None:
             html += f"<li>Rotate tube <b>{mp.rotation:.1f}°</b></li>\n"

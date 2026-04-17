@@ -48,9 +48,18 @@ VALLEY_DEPTH_OD_RATIO: float = 0.15
 # potentially be handled as a single pass.
 LOBE_COLLAPSE_DEGREES: float = 30.0
 
-# Included angle (degrees) below which the cope is too acute for
-# reliable notcher work and Method C (grinder) is recommended.
-ACUTE_ANGLE_LIMIT: float = 25.0
+# Minimum inclination angle (degrees) for a receiver to be included in the
+# z-profile computation.  Below this threshold, the saddle formula produces
+# impractically deep profiles (z ∝ 1/sin(α)), and the "receiver" is most
+# likely a same-direction tube at a shared junction (e.g., a Y-branch off
+# the actual receiving tube) rather than a tube that crosses the incoming path.
+MIN_COPE_INCLINATION_DEG: float = 10.0
+
+# Maximum notcher degree wheel setting above which Method C is recommended.
+# 90 - 25 = 65: inclination angles below 25° are too acute for reliable
+# notcher work.
+# On a VersaNotcher-style wheel, 0° = perpendicular T-joint, higher = steeper.
+MAX_NOTCHER_ANGLE: float = 65.0
 
 # Holesaw depth (inches) above which the notcher cannot complete
 # the pass and Method C is forced.
@@ -58,3 +67,38 @@ MAX_HOLESAW_DEPTH: float = 4.0
 
 # Clearance added to plunge depth for non-pass-through cuts (inches).
 HOLESAW_CLEARANCE: float = 0.03
+
+# Holesaw cutting depth (display units, typically inches) above which
+# a "deep holesaw" warning is issued.
+HOLESAW_DEEP_THRESHOLD: float = 2.0
+
+# Holesaw cutting depth (display units, typically inches) above which
+# an "extra-deep holesaw" warning is issued.
+HOLESAW_EXTRA_DEEP_THRESHOLD: float = 3.0
+
+# Minimum torus bend angle (degrees) to be considered a real bend.
+# Torus faces with a smaller angle are likely cope artifacts from tube
+# intersections and should be excluded from the tube path.
+MIN_BEND_ANGLE_DEG: float = 3.0
+
+# Maximum ratio of receiving tube OD to incoming tube OD for detection.
+# Bodies with OD larger than this ratio × incoming OD are rejected as
+# non-tube bodies (e.g., sheet metal panels with large-radius bends).
+MAX_RECEIVING_OD_RATIO: float = 5.0
+
+# --- Body-to-sketch matching tolerances ---
+
+# Angle tolerance (degrees) for merging coaxial cylinder faces that were
+# split by boolean operations (e.g., cope cuts).
+COAXIAL_MERGE_ANGLE_DEG: float = 2.0
+
+# Maximum perpendicular distance (cm) between cylinder axes to still
+# consider them coaxial and merge them.
+COAXIAL_MERGE_DISTANCE_CM: float = 0.5
+
+# Radius tolerance (cm) when filtering cylinder/torus faces to OD-only.
+OD_FILTER_TOLERANCE_CM: float = 0.01
+
+# Endpoint tolerance (cm) for sketch entity connectivity detection
+# (line-to-line, line-to-arc, arc-to-arc endpoint coincidence).
+SKETCH_ENDPOINT_TOLERANCE_CM: float = 0.05

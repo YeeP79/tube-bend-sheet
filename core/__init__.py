@@ -11,6 +11,11 @@ from .geometry import (
     distance_between_points,
     points_are_close,
     vectors_are_collinear,
+    subtract_vectors,
+    add_vectors,
+    scale_vector,
+    point_to_line_distance,
+    unsigned_angle_between,
 )
 from .protocols import (
     ArcLike,
@@ -61,12 +66,35 @@ from .tolerances import (
     COLLINEAR_ANGLE_DEG,
     VALLEY_DEPTH_OD_RATIO,
     LOBE_COLLAPSE_DEGREES,
-    ACUTE_ANGLE_LIMIT,
+    MAX_NOTCHER_ANGLE,
     MAX_HOLESAW_DEPTH,
     HOLESAW_CLEARANCE,
+    MIN_COPE_INCLINATION_DEG,
+    COAXIAL_MERGE_ANGLE_DEG,
+    COAXIAL_MERGE_DISTANCE_CM,
+    OD_FILTER_TOLERANCE_CM,
+    SKETCH_ENDPOINT_TOLERANCE_CM,
 )
+from .body_profile import (
+    merge_coaxial_straights,
+    determine_od_radius,
+    filter_od_straights,
+    filter_od_bends,
+    build_body_profile,
+)
+from .sketch_matching import (
+    graduated_direction_score,
+    clr_match_score,
+    proximity_score,
+    find_connected_path,
+    score_sketch_match,
+    rank_matches,
+)
+from .body_path import body_path_to_straights_and_bends, detect_path_direction
 from .cope_math import calculate_cope
 from .cope_template import generate_cope_svg
+from .cope_path import EndReference, compute_end_reference
+from .combined_output import CopePageData, generate_combined_document
 from .conventions import (
     ROTATION_REFERENCE,
     ROTATION_DIRECTION,
@@ -87,6 +115,11 @@ __all__ = [
     'distance_between_points',
     'points_are_close',
     'vectors_are_collinear',
+    'subtract_vectors',
+    'add_vectors',
+    'scale_vector',
+    'point_to_line_distance',
+    'unsigned_angle_between',
     # Protocols
     'ArcLike',
     'UnitConfigLike',
@@ -129,12 +162,39 @@ __all__ = [
     'COLLINEAR_ANGLE_DEG',
     'VALLEY_DEPTH_OD_RATIO',
     'LOBE_COLLAPSE_DEGREES',
-    'ACUTE_ANGLE_LIMIT',
+    'MAX_NOTCHER_ANGLE',
     'MAX_HOLESAW_DEPTH',
     'HOLESAW_CLEARANCE',
+    'MIN_COPE_INCLINATION_DEG',
+    'COAXIAL_MERGE_ANGLE_DEG',
+    'COAXIAL_MERGE_DISTANCE_CM',
+    'OD_FILTER_TOLERANCE_CM',
+    'SKETCH_ENDPOINT_TOLERANCE_CM',
+    # Body profile
+    'merge_coaxial_straights',
+    'determine_od_radius',
+    'filter_od_straights',
+    'filter_od_bends',
+    'build_body_profile',
+    # Sketch matching
+    'graduated_direction_score',
+    'clr_match_score',
+    'proximity_score',
+    'find_connected_path',
+    'score_sketch_match',
+    'rank_matches',
+    # Body path conversion
+    'body_path_to_straights_and_bends',
+    'detect_path_direction',
     # Cope math
     'calculate_cope',
     'generate_cope_svg',
+    # Cope path extraction
+    'EndReference',
+    'compute_end_reference',
+    # Combined output
+    'CopePageData',
+    'generate_combined_document',
     # Conventions
     'ROTATION_REFERENCE',
     'ROTATION_DIRECTION',

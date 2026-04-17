@@ -15,6 +15,18 @@ from .bend_data import (
 )
 from .compensation import CompensationDataPoint, DieMaterialCompensation
 from .cope_data import ReceivingTube, CopePass, CopeResult
+from .cope_input import CopeEndSpec
+from .match_data import (
+    BodyStraight,
+    BodyBend,
+    BodyProfile,
+    SketchLineData,
+    SketchArcData,
+    SketchProfile,
+    TransformedSketchProfile,
+    MatchResult,
+)
+from .body_path_data import BodyFaceSegment, BodyPathResult
 from .tube import Tube, MATERIAL_TYPES
 from .types import Vector3D, Point3D, ElementType, SegmentType
 from .units import UnitConfig
@@ -42,6 +54,20 @@ __all__ = [
     'ReceivingTube',
     'CopePass',
     'CopeResult',
+    # Cope input model
+    'CopeEndSpec',
+    # Match data models
+    'BodyStraight',
+    'BodyBend',
+    'BodyProfile',
+    'SketchLineData',
+    'SketchArcData',
+    'SketchProfile',
+    'TransformedSketchProfile',
+    'MatchResult',
+    # Body path data models
+    'BodyFaceSegment',
+    'BodyPathResult',
     # Tube model
     'Tube',
     'MATERIAL_TYPES',

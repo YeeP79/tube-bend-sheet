@@ -213,6 +213,116 @@ class BendSheetGenerator:
 
         return GenerationResult(success=True, data=sheet_data)
 
+    def generate_from_data(
+        self,
+        straights: list["StraightSection"],
+        bends: list["BendData"],
+        clr: float,
+        clr_mismatch: bool,
+        clr_values: list[float],
+        params: "BendSheetParams",
+        component_name: str,
+        travel_direction: str,
+        opposite_direction: str,
+        starts_with_arc: bool,
+        ends_with_arc: bool,
+    ) -> GenerationResult:
+        """Generate bend sheet from pre-computed straights and bends.
+
+        Skips geometry extraction (steps 1-3) and runs the calculation
+        pipeline (steps 4-9) directly. Used by the body-based
+        tubeFabrication command.
+
+        Args:
+            straights: Pre-computed straight sections (display units).
+            bends: Pre-computed bend data.
+            clr: Center line radius in display units.
+            clr_mismatch: Whether CLR values are inconsistent.
+            clr_values: List of all CLR values found (display units).
+            params: Parsed input parameters.
+            component_name: Name of the component.
+            travel_direction: Direction of travel label.
+            opposite_direction: Opposite direction label.
+            starts_with_arc: Whether path starts with an arc.
+            ends_with_arc: Whether path ends with an arc.
+
+        Returns:
+            GenerationResult with success status and data or error.
+        """
+        if not straights and not bends:
+            return GenerationResult(
+                success=False,
+                error="No geometry found in path. Cannot generate bend sheet.",
+            )
+
+        # Direction-aware validation for middle straights
+        if params.min_grip > 0 and len(straights) > 2:
+            direction_result = validate_direction_aware(
+                straights,
+                params.min_grip,
+                params.min_tail,
+                travel_direction,
+                opposite_direction,
+            )
+            if not direction_result.current_direction_valid:
+                return GenerationResult(
+                    success=False,
+                    error=direction_result.error_message,
+                    suggestion=direction_result.suggestion,
+                )
+
+        # Calculate grip/tail material requirements
+        material = calculate_material_requirements(
+            straights=straights,
+            min_grip=params.min_grip,
+            min_tail=params.min_tail,
+            die_offset=params.die_offset,
+            starts_with_arc=starts_with_arc,
+            ends_with_arc=ends_with_arc,
+            start_allowance=params.start_allowance,
+            end_allowance=params.end_allowance,
+            add_allowance_with_grip_extension=params.add_allowance_with_grip_extension,
+            add_allowance_with_tail_extension=params.add_allowance_with_tail_extension,
+        )
+
+        spring_back_warning = (
+            material.has_tail_extension and
+            material.effective_end_allowance == 0
+        )
+
+        segments, mark_positions = build_segments_and_marks(
+            straights, bends, material.extra_material, params.die_offset
+        )
+
+        compensation_warnings = self._apply_compensation(mark_positions, params)
+
+        total_centerline, total_cut_length, tail_cut_position = (
+            self._calculate_totals(straights, bends, material)
+        )
+
+        sheet_data = self._build_sheet_data(
+            params=params,
+            component_name=component_name,
+            clr=clr,
+            clr_mismatch=clr_mismatch,
+            clr_values=clr_values,
+            straights=straights,
+            bends=bends,
+            segments=segments,
+            mark_positions=mark_positions,
+            total_centerline=total_centerline,
+            total_cut_length=total_cut_length,
+            travel_direction=travel_direction,
+            starts_with_arc=starts_with_arc,
+            ends_with_arc=ends_with_arc,
+            material=material,
+            tail_cut_position=tail_cut_position,
+            spring_back_warning=spring_back_warning,
+            compensation_warnings=compensation_warnings,
+        )
+
+        return GenerationResult(success=True, data=sheet_data)
+
     def _apply_compensation(
         self,
         mark_positions: list["MarkPosition"],
