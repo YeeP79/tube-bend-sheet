@@ -53,11 +53,11 @@ def _generate_html_head() -> str:
         hr { border: none; border-top: 1px solid #999; margin: 0.2in 0; }
         .specs-table { width: auto; min-width: 3in; }
         .specs-table td:first-child { font-weight: bold; background-color: #f8f8f8; }
-        .notes-section { margin-top: 0.3in; }
-        .notes-box { border: 1px solid #333; padding: 10px; margin: 10px 0; min-height: 0.8in; }
+        .notes-section { margin-top: 0.15in; }
+        .notes-box { border: 1px solid #333; padding: 10px; margin: 5px 0; min-height: 0.5in; }
         .notes-box h4 { margin: 0 0 5px 0; font-size: 11pt; color: #333; }
         .notes-box p { margin: 0; font-size: 10pt; white-space: pre-wrap; }
-        .user-notes { min-height: 1.5in; background: repeating-linear-gradient(#fff, #fff 23px, #e0e0e0 24px); }
+        .user-notes { min-height: 0.75in; background: repeating-linear-gradient(#fff, #fff 23px, #e0e0e0 24px); }
         @media print { body { padding: 0; } }
     </style>
 </head>

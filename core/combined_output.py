@@ -81,8 +81,8 @@ def generate_combined_document(
 
     # Append cope pages
     cope_html_parts: list[str] = []
-    for page in cope_pages:
-        cope_html_parts.append(_render_cope_page(page))
+    for i, page in enumerate(cope_pages):
+        cope_html_parts.append(_render_cope_page(page, is_first=(i == 0)))
 
     return content + "\n".join(cope_html_parts) + "\n" + closing
 
@@ -90,9 +90,11 @@ def generate_combined_document(
 def _cope_page_css() -> str:
     """CSS rules for cope template pages."""
     return (
+        "\n        .user-notes { min-height: 0; }"
         "\n        .cope-page { page-break-before: always; margin-top: 0.5in; }"
+        "\n        .cope-page-first { page-break-before: auto; margin-top: 0.5in; }"
         "\n        .cope-svg-container { margin: 0.2in 0; }"
-        "\n        .cope-page h2 { font-size: 16pt; margin-bottom: 0.15in; }"
+        "\n        .cope-page h2 { font-size: 16pt; margin-bottom: 0.15in; page-break-after: avoid; }"
         "\n        .landscape-hint { color: #666; font-style: italic; margin-bottom: 0.1in; }"
         "\n        .wide-format-warning {"
         " color: #c00; font-weight: bold; margin-bottom: 0.1in; }"
@@ -107,7 +109,7 @@ def _inject_css(html: str, css: str) -> str:
     return html
 
 
-def _render_cope_page(page: CopePageData) -> str:
+def _render_cope_page(page: CopePageData, *, is_first: bool = False) -> str:
     """Render a single cope template page as an HTML fragment."""
     svg_raw = generate_cope_svg(
         result=page.cope_result,
@@ -126,9 +128,9 @@ def _render_cope_page(page: CopePageData) -> str:
     circumference = math.pi * page.od1
     orientation_hint = _orientation_hint(circumference)
 
+    css_class = "cope-page-first" if is_first else "cope-page"
     parts = [
-        '<div class="cope-page">',
-        f'  <h2>Cope Template &mdash; {page.end_label}</h2>',
+        f'<div class="{css_class}">',
     ]
     if orientation_hint:
         parts.append(f'  {orientation_hint}')

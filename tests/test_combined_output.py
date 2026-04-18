@@ -169,7 +169,8 @@ class TestCombinedDocumentBothEnds:
             _cope_page(end_label="End — Front Node"),
         ]
         html = generate_combined_document(data, pages)
-        assert html.count('class="cope-page"') == 2
+        assert html.count('class="cope-page-first"') == 1
+        assert html.count('class="cope-page"') == 1
 
     def test_both_svgs_present(self) -> None:
         data = _minimal_bend_sheet_data()
