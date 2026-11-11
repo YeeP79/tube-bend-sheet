@@ -1,0 +1,2402 @@
+{
+ "summary": {
+  "bodies": 85,
+  "pairs": 45,
+  "true_mirror": 41,
+  "near": 3,
+  "different": 1,
+  "unmatched": 1,
+  "on_plane": 6
+ },
+ "complete": true,
+ "units": {
+  "length": "in",
+  "area": "in^2",
+  "volume": "in^3"
+ },
+ "plane": {
+  "source": "yz",
+  "point": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "normal": [
+   1.0,
+   0.0,
+   0.0
+  ],
+  "axis_aligned": true
+ },
+ "tolerance": {
+  "true_mirror": 0.01,
+  "near": 0.1
+ },
+ "confirmation": {
+  "method": "temporary_brep",
+  "available": true,
+  "reason": null,
+  "checked": 44,
+  "same": 40,
+  "different": 1,
+  "unknown": 3,
+  "reflection_failed": 0,
+  "not_reached": 0
+ },
+ "pairs": [
+  {
+   "status": "different",
+   "on_plane": false,
+   "basis": "numbers",
+   "worst": 0.180263,
+   "deviation": {
+    "center_of_mass": 0.081125,
+    "center_offset": [
+     0.041037,
+     -0.021231,
+     -0.066681
+    ],
+    "bbox": 0.108861,
+    "volume": 0.100406,
+    "volume_percent": 0.5524,
+    "volume_length": 0.180263
+   },
+   "geometry": null,
+   "a": {
+    "occurrence_path": "front main to a pillar support:1",
+    "body_name": "passenger a pillar to front main (2) (1)",
+    "body_index": 1,
+    "component": "front main to a pillar support",
+    "side": "positive",
+    "volume": 18.075753,
+    "center": [
+     19.560282,
+     38.561064,
+     13.992348
+    ]
+   },
+   "b": {
+    "occurrence_path": "front main to a pillar support:1",
+    "body_name": "driver side a pillar to front main",
+    "body_index": 0,
+    "component": "front main to a pillar support",
+    "side": "negative",
+    "volume": 18.176159,
+    "center": [
+     -19.519245,
+     38.539833,
+     13.925667
+    ]
+   }
+  },
+  {
+   "status": "near",
+   "on_plane": false,
+   "basis": "numbers",
+   "worst": 0.051406,
+   "deviation": {
+    "center_of_mass": 0.000204,
+    "center_offset": [
+     0.000104,
+     -2e-05,
+     0.000174
+    ],
+    "bbox": 0.0,
+    "volume": 0.026669,
+    "volume_percent": 0.3453,
+    "volume_length": 0.051406
+   },
+   "geometry": {
+    "verdict": "unknown",
+    "symmetric_difference": null,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 7.696868,
+    "limit": 0.005188
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+boat side:1+rear boatside (1):1",
+    "body_name": "Body3",
+    "body_index": 0,
+    "component": "rear boatside (1)",
+    "side": "positive",
+    "volume": 7.696836,
+    "center": [
+     22.4833,
+     14.272485,
+     65.636256
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+boat side(Mirror) (1):1+rear boatside (1)(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "rear boatside (1)(Mirror) (1)",
+    "side": "negative",
+    "volume": 7.723505,
+    "center": [
+     -22.483196,
+     14.272465,
+     65.636429
+    ]
+   }
+  },
+  {
+   "status": "near",
+   "on_plane": false,
+   "basis": "numbers",
+   "worst": 0.012375,
+   "deviation": {
+    "center_of_mass": 0.000606,
+    "center_offset": [
+     -2.3e-05,
+     3e-06,
+     0.000606
+    ],
+    "bbox": 0.009038,
+    "volume": -0.00676,
+    "volume_percent": 0.0379,
+    "volume_length": 0.012375
+   },
+   "geometry": {
+    "verdict": "unknown",
+    "error": "3 : ASM_EDGECOIN_PROBLEM -   There was a problem combining geometry together.\n    If attempting a Join/Cut/Intersect, try to ensure that the bodies have a clear overlap (problems can occur where faces and edges are nearly coincident)."
+   },
+   "a": {
+    "occurrence_path": "front shock hoop to a pillar support:1",
+    "body_name": "passenger shock hoop to a pillar support 1.75 (4)",
+    "body_index": 0,
+    "component": "front shock hoop to a pillar support",
+    "side": "positive",
+    "volume": 17.818704,
+    "center": [
+     20.089863,
+     43.061137,
+     11.859139
+    ]
+   },
+   "b": {
+    "occurrence_path": "front shock hoop to a pillar support:1",
+    "body_name": "driver shock hoop to a pillar support 1.75 (2) (1)",
+    "body_index": 1,
+    "component": "front shock hoop to a pillar support",
+    "side": "negative",
+    "volume": 17.811945,
+    "center": [
+     -20.089886,
+     43.061141,
+     11.859745
+    ]
+   }
+  },
+  {
+   "status": "near",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.000919,
+   "deviation": {
+    "center_of_mass": 0.00043,
+    "center_offset": [
+     -4.4e-05,
+     4e-06,
+     0.000428
+    ],
+    "bbox": 0.000919,
+    "volume": 0.000535,
+    "volume_percent": 0.0064,
+    "volume_length": 0.000892
+   },
+   "geometry": {
+    "verdict": "different",
+    "symmetric_difference": 0.007762,
+    "a_only": 0.003613,
+    "b_only": 0.004148,
+    "overlap": 8.293809,
+    "limit": 0.006
+   },
+   "a": {
+    "occurrence_path": "shock tower lateral support:1",
+    "body_name": "Y tube passenger 1.75",
+    "body_index": 2,
+    "component": "shock tower lateral support",
+    "side": "positive",
+    "volume": 8.297422,
+    "center": [
+     11.547618,
+     42.840667,
+     -7.753365
+    ]
+   },
+   "b": {
+    "occurrence_path": "shock tower lateral support:1",
+    "body_name": "Y tube driver 1.75",
+    "body_index": 3,
+    "component": "shock tower lateral support",
+    "side": "negative",
+    "volume": 8.297957,
+    "center": [
+     -11.547662,
+     42.840671,
+     -7.752937
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.004562,
+   "deviation": {
+    "center_of_mass": 0.001516,
+    "center_offset": [
+     -0.0,
+     -0.001351,
+     -0.000689
+    ],
+    "bbox": 0.0,
+    "volume": -0.002308,
+    "volume_percent": 0.037,
+    "volume_length": 0.004562
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 6.236874,
+    "limit": 0.005059
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+Door bar front diagonal support:1",
+    "body_name": "Body3",
+    "body_index": 0,
+    "component": "Door bar front diagonal support",
+    "side": "positive",
+    "volume": 6.236492,
+    "center": [
+     28.111934,
+     22.500025,
+     29.744717
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+Door bar front diagonal support(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "Door bar front diagonal support(Mirror) (1)",
+    "side": "negative",
+    "volume": 6.234184,
+    "center": [
+     -28.111935,
+     22.498674,
+     29.744028
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "numbers",
+   "worst": 0.003876,
+   "deviation": {
+    "center_of_mass": 0.000852,
+    "center_offset": [
+     2.2e-05,
+     -9e-05,
+     0.000847
+    ],
+    "bbox": 0.003876,
+    "volume": 0.000709,
+    "volume_percent": 0.0029,
+    "volume_length": 0.000734
+   },
+   "geometry": {
+    "verdict": "unknown",
+    "error": "3 : ASM_EDGECOIN_PROBLEM -   There was a problem combining geometry together.\n    If attempting a Join/Cut/Intersect, try to ensure that the bodies have a clear overlap (problems can occur where faces and edges are nearly coincident)."
+   },
+   "a": {
+    "occurrence_path": "front shock tower:1",
+    "body_name": "passenger shock tower 1.75",
+    "body_index": 3,
+    "component": "front shock tower",
+    "side": "positive",
+    "volume": 24.281169,
+    "center": [
+     13.320865,
+     43.011453,
+     -7.553427
+    ]
+   },
+   "b": {
+    "occurrence_path": "front shock tower:1",
+    "body_name": "driver shock tower 1.75",
+    "body_index": 2,
+    "component": "front shock tower",
+    "side": "negative",
+    "volume": 24.281879,
+    "center": [
+     -13.320843,
+     43.011363,
+     -7.55258
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.003666,
+   "deviation": {
+    "center_of_mass": 6.9e-05,
+    "center_offset": [
+     -4.6e-05,
+     5e-05,
+     -9e-06
+    ],
+    "bbox": 0.0,
+    "volume": 0.001518,
+    "volume_percent": 0.0383,
+    "volume_length": 0.003666
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 3.966787,
+    "limit": 0.00414
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+Overhead Front B Pillar to Rear B Pillar connector:1",
+    "body_name": "Body3",
+    "body_index": 0,
+    "component": "Overhead Front B Pillar to Rear B Pillar connector",
+    "side": "positive",
+    "volume": 3.965269,
+    "center": [
+     22.402755,
+     61.653733,
+     83.349042
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+Overhead Front B Pillar to Rear B Pillar connector(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "Overhead Front B Pillar to Rear B Pillar connector(Mirror) (1)",
+    "side": "negative",
+    "volume": 3.966787,
+    "center": [
+     -22.402801,
+     61.653782,
+     83.349033
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.002707,
+   "deviation": {
+    "center_of_mass": 2.5e-05,
+    "center_offset": [
+     -2.4e-05,
+     5e-06,
+     7e-06
+    ],
+    "bbox": 0.0,
+    "volume": 0.001402,
+    "volume_percent": 0.0182,
+    "volume_length": 0.002707
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 7.711975,
+    "limit": 0.005179
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+boat side:1+front boatside:1",
+    "body_name": "Body3",
+    "body_index": 0,
+    "component": "front boatside",
+    "side": "positive",
+    "volume": 7.711975,
+    "center": [
+     22.494741,
+     14.278025,
+     32.120294
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+boat side(Mirror) (1):1+front boatside(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "front boatside(Mirror) (1)",
+    "side": "negative",
+    "volume": 7.713377,
+    "center": [
+     -22.494765,
+     14.27803,
+     32.120301
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.002254,
+   "deviation": {
+    "center_of_mass": 4.9e-05,
+    "center_offset": [
+     1.2e-05,
+     4.1e-05,
+     -2.4e-05
+    ],
+    "bbox": 0.0,
+    "volume": -0.001728,
+    "volume_percent": 0.0042,
+    "volume_length": 0.002254
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 41.147756,
+    "limit": 0.007666
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+Rear B Pillar:1",
+    "body_name": "Body2",
+    "body_index": 0,
+    "component": "Rear B Pillar",
+    "side": "positive",
+    "volume": 41.147756,
+    "center": [
+     19.576807,
+     46.283499,
+     81.682265
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+Rear B Pillar(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "Rear B Pillar(Mirror) (1)",
+    "side": "negative",
+    "volume": 41.146028,
+    "center": [
+     -19.576795,
+     46.28354,
+     81.682242
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.00219,
+   "deviation": {
+    "center_of_mass": 0.00219,
+    "center_offset": [
+     0.000652,
+     0.001194,
+     -0.001716
+    ],
+    "bbox": 4e-06,
+    "volume": -0.000121,
+    "volume_percent": 0.0118,
+    "volume_length": 0.000455
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 1.028105,
+    "limit": 0.002668
+   },
+   "a": {
+    "occurrence_path": "Winch fairlead support:1",
+    "body_name": "Body4",
+    "body_index": 0,
+    "component": "Winch fairlead support",
+    "side": "positive",
+    "volume": 1.027383,
+    "center": [
+     5.005463,
+     36.503705,
+     -18.132784
+    ]
+   },
+   "b": {
+    "occurrence_path": "Winch fairlead support:1",
+    "body_name": "Body15",
+    "body_index": 3,
+    "component": "Winch fairlead support",
+    "side": "negative",
+    "volume": 1.027262,
+    "center": [
+     -5.004812,
+     36.504899,
+     -18.134501
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.001193,
+   "deviation": {
+    "center_of_mass": 1.6e-05,
+    "center_offset": [
+     -1.3e-05,
+     9e-06,
+     1e-06
+    ],
+    "bbox": 0.0,
+    "volume": -0.000618,
+    "volume_percent": 0.008,
+    "volume_length": 0.001193
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 7.712627,
+    "limit": 0.005177
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+boat side:1+middle boatside (1):1",
+    "body_name": "Body3",
+    "body_index": 0,
+    "component": "middle boatside (1)",
+    "side": "positive",
+    "volume": 7.712627,
+    "center": [
+     22.494467,
+     14.277948,
+     48.26264
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+boat side(Mirror) (1):1+middle boatside (1)(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "middle boatside (1)(Mirror) (1)",
+    "side": "negative",
+    "volume": 7.71201,
+    "center": [
+     -22.49448,
+     14.277958,
+     48.262642
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.000782,
+   "deviation": {
+    "center_of_mass": 0.000406,
+    "center_offset": [
+     -7e-05,
+     -0.000124,
+     -0.00038
+    ],
+    "bbox": 3e-06,
+    "volume": 0.000893,
+    "volume_percent": 0.0011,
+    "volume_length": 0.000782
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 7e-06,
+    "a_only": 0.0,
+    "b_only": 7e-06,
+    "overlap": 82.352189,
+    "limit": 0.011417
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+lower frame rail:1",
+    "body_name": "Body2",
+    "body_index": 0,
+    "component": "lower frame rail",
+    "side": "positive",
+    "volume": 82.354308,
+    "center": [
+     15.051228,
+     15.510429,
+     57.002687
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+lower frame rail(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "lower frame rail(Mirror) (1)",
+    "side": "negative",
+    "volume": 82.355201,
+    "center": [
+     -15.051299,
+     15.510304,
+     57.002307
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.000779,
+   "deviation": {
+    "center_of_mass": 0.00015,
+    "center_offset": [
+     0.000103,
+     -1.2e-05,
+     0.000109
+    ],
+    "bbox": 0.0,
+    "volume": 0.000408,
+    "volume_percent": 0.0048,
+    "volume_length": 0.000779
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 8.448694,
+    "limit": 0.005242
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+outer overhead to a pillar:1",
+    "body_name": "Body3",
+    "body_index": 0,
+    "component": "outer overhead to a pillar",
+    "side": "positive",
+    "volume": 8.448286,
+    "center": [
+     22.485094,
+     60.737799,
+     52.577404
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+outer overhead to a pillar(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "outer overhead to a pillar(Mirror) (1)",
+    "side": "negative",
+    "volume": 8.448694,
+    "center": [
+     -22.48499,
+     60.737786,
+     52.577513
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.000662,
+   "deviation": {
+    "center_of_mass": 0.000662,
+    "center_offset": [
+     -8.3e-05,
+     -0.000654,
+     -6.3e-05
+    ],
+    "bbox": 0.0,
+    "volume": -8e-06,
+    "volume_percent": 0.0051,
+    "volume_length": 0.000112
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 0.16231,
+    "limit": 0.000741
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+A Pillar into over head:1",
+    "body_name": "Body2",
+    "body_index": 1,
+    "component": "A Pillar into over head",
+    "side": "positive",
+    "volume": 0.162255,
+    "center": [
+     25.593649,
+     62.272168,
+     79.971048
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+A Pillar into over head(Mirror) (1):1",
+    "body_name": "Body3",
+    "body_index": 2,
+    "component": "A Pillar into over head(Mirror) (1)",
+    "side": "negative",
+    "volume": 0.162247,
+    "center": [
+     -25.593732,
+     62.271514,
+     79.970985
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": true,
+   "basis": "temporary_brep",
+   "worst": 0.000521,
+   "deviation": {
+    "center_of_mass": 0.000521,
+    "center_offset": [
+     -0.000521,
+     0.0,
+     0.0
+    ],
+    "bbox": 0.0,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 13.641711,
+    "limit": 0.005693
+   },
+   "a": {
+    "occurrence_path": "Winch fairlead support:1",
+    "body_name": "Body10",
+    "body_index": 2,
+    "component": "Winch fairlead support",
+    "side": "on_plane",
+    "volume": 13.643128,
+    "center": [
+     -0.000261,
+     34.860146,
+     -17.629247
+    ]
+   },
+   "b": {
+    "occurrence_path": "Winch fairlead support:1",
+    "body_name": "Body10",
+    "body_index": 2,
+    "component": "Winch fairlead support",
+    "side": "on_plane",
+    "volume": 13.643128,
+    "center": [
+     -0.000261,
+     34.860146,
+     -17.629247
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.000369,
+   "deviation": {
+    "center_of_mass": 1.1e-05,
+    "center_offset": [
+     0.0,
+     1.1e-05,
+     -1e-06
+    ],
+    "bbox": 0.0,
+    "volume": 3.8e-05,
+    "volume_percent": 0.0148,
+    "volume_length": 0.000369
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 0.254918,
+    "limit": 0.001025
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+Overhead B pillar spreader:1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "Overhead B pillar spreader",
+    "side": "positive",
+    "volume": 0.254918,
+    "center": [
+     7.75,
+     62.665082,
+     80.670502
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+Overhead B pillar spreader(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "Overhead B pillar spreader(Mirror) (1)",
+    "side": "negative",
+    "volume": 0.254956,
+    "center": [
+     -7.75,
+     62.665093,
+     80.670501
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.000369,
+   "deviation": {
+    "center_of_mass": 1.1e-05,
+    "center_offset": [
+     0.0,
+     1.1e-05,
+     -1e-06
+    ],
+    "bbox": 0.0,
+    "volume": -3.8e-05,
+    "volume_percent": 0.0148,
+    "volume_length": 0.000369
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 0.254956,
+    "limit": 0.001025
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+Overhead B pillar spreader:1",
+    "body_name": "Body2",
+    "body_index": 1,
+    "component": "Overhead B pillar spreader",
+    "side": "positive",
+    "volume": 0.254956,
+    "center": [
+     7.75,
+     61.084907,
+     86.142246
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+Overhead B pillar spreader(Mirror) (1):1",
+    "body_name": "Body2",
+    "body_index": 1,
+    "component": "Overhead B pillar spreader(Mirror) (1)",
+    "side": "negative",
+    "volume": 0.254918,
+    "center": [
+     -7.75,
+     61.084918,
+     86.142244
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.000194,
+   "deviation": {
+    "center_of_mass": 8e-05,
+    "center_offset": [
+     4e-06,
+     2.4e-05,
+     7.6e-05
+    ],
+    "bbox": 0.0,
+    "volume": 0.000141,
+    "volume_percent": 0.0003,
+    "volume_length": 0.000194
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 52.67042,
+    "limit": 0.007246
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+A Pillar into over head:1",
+    "body_name": "Body6",
+    "body_index": 2,
+    "component": "A Pillar into over head",
+    "side": "positive",
+    "volume": 52.670068,
+    "center": [
+     26.59426,
+     49.054577,
+     43.504881
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+A Pillar into over head(Mirror) (1):1",
+    "body_name": "Body2",
+    "body_index": 1,
+    "component": "A Pillar into over head(Mirror) (1)",
+    "side": "negative",
+    "volume": 52.670208,
+    "center": [
+     -26.594257,
+     49.054601,
+     43.504957
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.000184,
+   "deviation": {
+    "center_of_mass": 1.5e-05,
+    "center_offset": [
+     1.1e-05,
+     8e-06,
+     -7e-06
+    ],
+    "bbox": 0.0,
+    "volume": -9.8e-05,
+    "volume_percent": 0.0015,
+    "volume_length": 0.000184
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 6.66971,
+    "limit": 0.00534
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+overhead center spreader:1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "overhead center spreader",
+    "side": "positive",
+    "volume": 6.669808,
+    "center": [
+     5.14232,
+     61.046495,
+     46.706996
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+overhead center spreader(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "overhead center spreader(Mirror) (1)",
+    "side": "negative",
+    "volume": 6.66971,
+    "center": [
+     -5.142309,
+     61.046503,
+     46.706989
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 8.3e-05,
+   "deviation": {
+    "center_of_mass": 8.3e-05,
+    "center_offset": [
+     3.8e-05,
+     -4e-06,
+     -7.4e-05
+    ],
+    "bbox": 0.0,
+    "volume": 2.7e-05,
+    "volume_percent": 0.0001,
+    "volume_length": 4.7e-05
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 20.455901,
+    "limit": 0.005898
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+outer overhead tube:1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "outer overhead tube",
+    "side": "positive",
+    "volume": 20.455873,
+    "center": [
+     18.976943,
+     62.593721,
+     63.918812
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+outer overhead tube(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "outer overhead tube(Mirror) (1)",
+    "side": "negative",
+    "volume": 20.455901,
+    "center": [
+     -18.976905,
+     62.593717,
+     63.918738
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": true,
+   "basis": "temporary_brep",
+   "worst": 8.3e-05,
+   "deviation": {
+    "center_of_mass": 8.3e-05,
+    "center_offset": [
+     -8.3e-05,
+     0.0,
+     0.0
+    ],
+    "bbox": 3e-06,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 18.424029,
+    "limit": 0.006365
+   },
+   "a": {
+    "occurrence_path": "Winch fairlead support:1",
+    "body_name": "Body20",
+    "body_index": 1,
+    "component": "Winch fairlead support",
+    "side": "on_plane",
+    "volume": 18.424029,
+    "center": [
+     -4.1e-05,
+     39.147738,
+     -17.082869
+    ]
+   },
+   "b": {
+    "occurrence_path": "Winch fairlead support:1",
+    "body_name": "Body20",
+    "body_index": 1,
+    "component": "Winch fairlead support",
+    "side": "on_plane",
+    "volume": 18.424029,
+    "center": [
+     -4.1e-05,
+     39.147738,
+     -17.082869
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 7.7e-05,
+   "deviation": {
+    "center_of_mass": 7.7e-05,
+    "center_offset": [
+     2e-06,
+     7.7e-05,
+     -4e-06
+    ],
+    "bbox": 0.0,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 48.182901,
+    "limit": 0.008778
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+Door bar:1",
+    "body_name": "Body4",
+    "body_index": 1,
+    "component": "Door bar",
+    "side": "positive",
+    "volume": 48.186922,
+    "center": [
+     28.502344,
+     36.861052,
+     44.699819
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+Door bar(Mirror) (1):1",
+    "body_name": "Body2",
+    "body_index": 1,
+    "component": "Door bar(Mirror) (1)",
+    "side": "negative",
+    "volume": 48.186922,
+    "center": [
+     -28.502342,
+     36.861129,
+     44.699814
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 2.8e-05,
+   "deviation": {
+    "center_of_mass": 1e-06,
+    "center_offset": [
+     1e-06,
+     0.0,
+     -0.0
+    ],
+    "bbox": 0.0,
+    "volume": -1.6e-05,
+    "volume_percent": 0.0001,
+    "volume_length": 2.8e-05
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 16.032693,
+    "limit": 0.005492
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+door bar diagonal support:1",
+    "body_name": "Body5",
+    "body_index": 0,
+    "component": "door bar diagonal support",
+    "side": "positive",
+    "volume": 16.032491,
+    "center": [
+     28.781241,
+     22.466431,
+     51.700333
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+door bar diagonal support(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "door bar diagonal support(Mirror) (1)",
+    "side": "negative",
+    "volume": 16.032476,
+    "center": [
+     -28.781241,
+     22.466431,
+     51.700333
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": true,
+   "basis": "temporary_brep",
+   "worst": 2.2e-05,
+   "deviation": {
+    "center_of_mass": 2.2e-05,
+    "center_offset": [
+     -2.2e-05,
+     0.0,
+     0.0
+    ],
+    "bbox": 0.0,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 32.944405,
+    "limit": 0.005983
+   },
+   "a": {
+    "occurrence_path": "Lower windshield cross tube:1",
+    "body_name": "lower windshield cross tube",
+    "body_index": 0,
+    "component": "Lower windshield cross tube",
+    "side": "on_plane",
+    "volume": 32.944008,
+    "center": [
+     -1.1e-05,
+     43.169503,
+     26.754902
+    ]
+   },
+   "b": {
+    "occurrence_path": "Lower windshield cross tube:1",
+    "body_name": "lower windshield cross tube",
+    "body_index": 0,
+    "component": "Lower windshield cross tube",
+    "side": "on_plane",
+    "volume": 32.944008,
+    "center": [
+     -1.1e-05,
+     43.169503,
+     26.754902
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": true,
+   "basis": "temporary_brep",
+   "worst": 7e-06,
+   "deviation": {
+    "center_of_mass": 7e-06,
+    "center_offset": [
+     7e-06,
+     0.0,
+     0.0
+    ],
+    "bbox": 7e-06,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 9e-06,
+    "a_only": 4e-06,
+    "b_only": 4e-06,
+    "overlap": 12.836637,
+    "limit": 0.006102
+   },
+   "a": {
+    "occurrence_path": "shock tower lateral support:1",
+    "body_name": "cross brace 1.75",
+    "body_index": 4,
+    "component": "shock tower lateral support",
+    "side": "on_plane",
+    "volume": 12.836641,
+    "center": [
+     4e-06,
+     42.839242,
+     -7.903567
+    ]
+   },
+   "b": {
+    "occurrence_path": "shock tower lateral support:1",
+    "body_name": "cross brace 1.75",
+    "body_index": 4,
+    "component": "shock tower lateral support",
+    "side": "on_plane",
+    "volume": 12.836641,
+    "center": [
+     4e-06,
+     42.839242,
+     -7.903567
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 1e-06,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     0.0,
+     -0.0,
+     0.0
+    ],
+    "bbox": 0.0,
+    "volume": -0.0,
+    "volume_percent": 0.0,
+    "volume_length": 1e-06
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 4.149695,
+    "limit": 0.004158
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+Front B Pillar to Rear B Pillar Spreaders:1",
+    "body_name": "Body7",
+    "body_index": 1,
+    "component": "Front B Pillar to Rear B Pillar Spreaders",
+    "side": "positive",
+    "volume": 4.149695,
+    "center": [
+     26.315823,
+     35.384336,
+     74.850759
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+Front B Pillar to Rear B Pillar Spreaders(Mirror) (1):1",
+    "body_name": "Body2",
+    "body_index": 1,
+    "component": "Front B Pillar to Rear B Pillar Spreaders(Mirror) (1)",
+    "side": "negative",
+    "volume": 4.149695,
+    "center": [
+     -26.315823,
+     35.384336,
+     74.850759
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     0.0,
+     0.0,
+     -0.0
+    ],
+    "bbox": 0.0,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 18.765505,
+    "limit": 0.007406
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+Rear lower frame rail crossmember:1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "Rear lower frame rail crossmember",
+    "side": "positive",
+    "volume": 18.765505,
+    "center": [
+     11.764177,
+     24.326687,
+     83.562614
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+Rear lower frame rail crossmember(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "Rear lower frame rail crossmember(Mirror) (1)",
+    "side": "negative",
+    "volume": 18.765505,
+    "center": [
+     -11.764177,
+     24.326687,
+     83.562614
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     0.0,
+     -0.0,
+     -0.0
+    ],
+    "bbox": 0.0,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 21.406012,
+    "limit": 0.005915
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+Upper Windshield spreader:1",
+    "body_name": "Body2",
+    "body_index": 0,
+    "component": "Upper Windshield spreader",
+    "side": "positive",
+    "volume": 21.406012,
+    "center": [
+     14.048213,
+     57.381898,
+     36.586797
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+Upper Windshield spreader(Mirror) (1):1",
+    "body_name": "Body2",
+    "body_index": 0,
+    "component": "Upper Windshield spreader(Mirror) (1)",
+    "side": "negative",
+    "volume": 21.406012,
+    "center": [
+     -14.048213,
+     57.381898,
+     36.586797
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     -0.0,
+     0.0,
+     -0.0
+    ],
+    "bbox": 0.0,
+    "volume": -0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 28.951164,
+    "limit": 0.005941
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+middle overhead tube:1",
+    "body_name": "Body3",
+    "body_index": 0,
+    "component": "middle overhead tube",
+    "side": "positive",
+    "volume": 28.955663,
+    "center": [
+     9.581662,
+     61.384829,
+     56.415301
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+middle overhead tube(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "middle overhead tube(Mirror) (1)",
+    "side": "negative",
+    "volume": 28.955663,
+    "center": [
+     -9.581662,
+     61.384829,
+     56.415301
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     -0.0,
+     0.0,
+     0.0
+    ],
+    "bbox": 0.0,
+    "volume": -0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 4.851065,
+    "limit": 0.004656
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+A pillar to door bar spreader:1",
+    "body_name": "Body3",
+    "body_index": 0,
+    "component": "A pillar to door bar spreader",
+    "side": "positive",
+    "volume": 4.852718,
+    "center": [
+     27.801144,
+     48.964326,
+     35.993676
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+A pillar to door bar spreader(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "A pillar to door bar spreader(Mirror) (1)",
+    "side": "negative",
+    "volume": 4.852718,
+    "center": [
+     -27.801144,
+     48.964326,
+     35.993676
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bbox": 0.0,
+    "volume": -0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 50.206726,
+    "limit": 0.009712
+   },
+   "a": {
+    "occurrence_path": "driver side:1+lower frame rail front:1",
+    "body_name": "rebuild: passenger side front main",
+    "body_index": 2,
+    "component": "lower frame rail front",
+    "side": "positive",
+    "volume": 50.206726,
+    "center": [
+     12.709546,
+     31.422974,
+     -1.465814
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+lower frame rail front:1",
+    "body_name": "rebuild: driver side front main",
+    "body_index": 1,
+    "component": "lower frame rail front",
+    "side": "negative",
+    "volume": 50.206726,
+    "center": [
+     -12.709546,
+     31.422974,
+     -1.465814
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     -0.0,
+     0.0,
+     0.0
+    ],
+    "bbox": 0.0,
+    "volume": -0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 42.646855,
+    "limit": 0.007287
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+boat side:1+upper boat side:1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "upper boat side",
+    "side": "positive",
+    "volume": 42.646855,
+    "center": [
+     25.994891,
+     17.125,
+     49.953728
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+boat side(Mirror) (1):1+upper boat side(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "upper boat side(Mirror) (1)",
+    "side": "negative",
+    "volume": 42.646855,
+    "center": [
+     -25.994891,
+     17.125,
+     49.953728
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     -0.0,
+     0.0,
+     0.0
+    ],
+    "bbox": 0.0,
+    "volume": -0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 4.15025,
+    "limit": 0.004159
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+Front B Pillar to Rear B Pillar Spreaders:1",
+    "body_name": "Body9",
+    "body_index": 2,
+    "component": "Front B Pillar to Rear B Pillar Spreaders",
+    "side": "positive",
+    "volume": 4.15025,
+    "center": [
+     26.316072,
+     23.25,
+     70.930832
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+Front B Pillar to Rear B Pillar Spreaders(Mirror) (1):1",
+    "body_name": "Body3",
+    "body_index": 2,
+    "component": "Front B Pillar to Rear B Pillar Spreaders(Mirror) (1)",
+    "side": "negative",
+    "volume": 4.15025,
+    "center": [
+     -26.316072,
+     23.25,
+     70.930832
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     -0.0,
+     -0.0,
+     -0.0
+    ],
+    "bbox": 0.0,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 4.150262,
+    "limit": 0.004159
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+Front B Pillar to Rear B Pillar Spreaders:1",
+    "body_name": "Body5",
+    "body_index": 0,
+    "component": "Front B Pillar to Rear B Pillar Spreaders",
+    "side": "positive",
+    "volume": 4.150262,
+    "center": [
+     26.31607,
+     51.124999,
+     79.93421
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+Front B Pillar to Rear B Pillar Spreaders(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "Front B Pillar to Rear B Pillar Spreaders(Mirror) (1)",
+    "side": "negative",
+    "volume": 4.150262,
+    "center": [
+     -26.31607,
+     51.124999,
+     79.93421
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bbox": 0.0,
+    "volume": -0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 34.353773,
+    "limit": 0.005989
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+upper frame rail:1",
+    "body_name": "Body6",
+    "body_index": 0,
+    "component": "upper frame rail",
+    "side": "positive",
+    "volume": 34.353773,
+    "center": [
+     16.031235,
+     17.130997,
+     50.372502
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+upper frame rail(Mirror) (1):1",
+    "body_name": "Body2",
+    "body_index": 0,
+    "component": "upper frame rail(Mirror) (1)",
+    "side": "negative",
+    "volume": 34.353773,
+    "center": [
+     -16.031235,
+     17.130997,
+     50.372502
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     0.0,
+     0.0,
+     -0.0
+    ],
+    "bbox": 0.0,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 3.750673,
+    "limit": 0.004973
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+frame rail suport tube 2:1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "frame rail suport tube 2",
+    "side": "positive",
+    "volume": 3.750673,
+    "center": [
+     16.03125,
+     14.25,
+     49.288759
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+frame rail suport tube 2(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "frame rail suport tube 2(Mirror) (1)",
+    "side": "negative",
+    "volume": 3.750673,
+    "center": [
+     -16.03125,
+     14.25,
+     49.288759
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     -0.0,
+     0.0,
+     -0.0
+    ],
+    "bbox": 0.0,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 3.750673,
+    "limit": 0.004973
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+frame rail support tube 3:1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "frame rail support tube 3",
+    "side": "positive",
+    "volume": 3.750673,
+    "center": [
+     16.03125,
+     14.25,
+     66.663759
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+frame rail support tube 3(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "frame rail support tube 3(Mirror) (1)",
+    "side": "negative",
+    "volume": 3.750673,
+    "center": [
+     -16.03125,
+     14.25,
+     66.663759
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bbox": 0.0,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 7.834818,
+    "limit": 0.006032
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+boat side:1+upper floor support:1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "upper floor support",
+    "side": "positive",
+    "volume": 7.834818,
+    "center": [
+     22.40625,
+     17.125,
+     45.5
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+boat side(Mirror) (1):1+upper floor support(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "upper floor support(Mirror) (1)",
+    "side": "negative",
+    "volume": 7.834818,
+    "center": [
+     -22.40625,
+     17.125,
+     45.5
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     -0.0,
+     0.0,
+     0.0
+    ],
+    "bbox": 0.0,
+    "volume": -0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 3.741463,
+    "limit": 0.00498
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+frame support tube:1",
+    "body_name": "Body1",
+    "body_index": 1,
+    "component": "frame support tube",
+    "side": "positive",
+    "volume": 3.741463,
+    "center": [
+     16.03125,
+     14.25,
+     33.123819
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+frame support tube(Mirror) (1):1",
+    "body_name": "Body2",
+    "body_index": 1,
+    "component": "frame support tube(Mirror) (1)",
+    "side": "negative",
+    "volume": 3.741463,
+    "center": [
+     -16.03125,
+     14.25,
+     33.123819
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     -0.0,
+     0.0,
+     0.0
+    ],
+    "bbox": 0.0,
+    "volume": -0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 3.741463,
+    "limit": 0.00498
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+frame support tube:1",
+    "body_name": "Body6",
+    "body_index": 0,
+    "component": "frame support tube",
+    "side": "positive",
+    "volume": 3.741463,
+    "center": [
+     16.03125,
+     14.25,
+     33.123819
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+frame support tube(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "frame support tube(Mirror) (1)",
+    "side": "negative",
+    "volume": 3.741463,
+    "center": [
+     -16.03125,
+     14.25,
+     33.123819
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     0.0,
+     0.0,
+     -0.0
+    ],
+    "bbox": 0.0,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 9.851131,
+    "limit": 0.006073
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+lower control arm crossmember:1",
+    "body_name": "Body2",
+    "body_index": 0,
+    "component": "lower control arm crossmember",
+    "side": "positive",
+    "volume": 9.851131,
+    "center": [
+     8.015625,
+     11.375,
+     30.375
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+lower control arm crossmember(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "lower control arm crossmember(Mirror) (1)",
+    "side": "negative",
+    "volume": 9.851131,
+    "center": [
+     -8.015625,
+     11.375,
+     30.375
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": true,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bbox": 0.0,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 19.702263,
+    "limit": 0.006127
+   },
+   "a": {
+    "occurrence_path": "transmission crossmember (1):1",
+    "body_name": "Body10",
+    "body_index": 0,
+    "component": "transmission crossmember (1)",
+    "side": "on_plane",
+    "volume": 19.702263,
+    "center": [
+     0.0,
+     11.375,
+     50.594738
+    ]
+   },
+   "b": {
+    "occurrence_path": "transmission crossmember (1):1",
+    "body_name": "Body10",
+    "body_index": 0,
+    "component": "transmission crossmember (1)",
+    "side": "on_plane",
+    "volume": 19.702263,
+    "center": [
+     0.0,
+     11.375,
+     50.594738
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bbox": 0.0,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 0.366639,
+    "limit": 0.00112
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+Door bar:1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "Door bar",
+    "side": "positive",
+    "volume": 0.366639,
+    "center": [
+     27.533597,
+     58.664864,
+     46.676162
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+Door bar(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "Door bar(Mirror) (1)",
+    "side": "negative",
+    "volume": 0.366639,
+    "center": [
+     -27.533597,
+     58.664864,
+     46.676162
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": false,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bbox": 0.0,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 3.107948,
+    "limit": 0.004092
+   },
+   "a": {
+    "occurrence_path": "passenger side:1+Overhead B pillar spreader:1",
+    "body_name": "Body3",
+    "body_index": 2,
+    "component": "Overhead B pillar spreader",
+    "side": "positive",
+    "volume": 3.107948,
+    "center": [
+     7.749988,
+     61.874986,
+     83.406423
+    ]
+   },
+   "b": {
+    "occurrence_path": "driver side:1+Overhead B pillar spreader(Mirror) (1):1",
+    "body_name": "Body3",
+    "body_index": 2,
+    "component": "Overhead B pillar spreader(Mirror) (1)",
+    "side": "negative",
+    "volume": 3.107948,
+    "center": [
+     -7.749988,
+     61.874986,
+     83.406423
+    ]
+   }
+  },
+  {
+   "status": "true_mirror",
+   "on_plane": true,
+   "basis": "temporary_brep",
+   "worst": 0.0,
+   "deviation": {
+    "center_of_mass": 0.0,
+    "center_offset": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bbox": 0.0,
+    "volume": 0.0,
+    "volume_percent": 0.0,
+    "volume_length": 0.0
+   },
+   "geometry": {
+    "verdict": "same",
+    "symmetric_difference": 0.0,
+    "a_only": 0.0,
+    "b_only": 0.0,
+    "overlap": 0.485063,
+    "limit": 0.001794
+   },
+   "a": {
+    "occurrence_path": "transmission crossmember (1):1",
+    "body_name": "Body14",
+    "body_index": 2,
+    "component": "transmission crossmember (1)",
+    "side": "on_plane",
+    "volume": 0.485063,
+    "center": [
+     0.0,
+     11.312,
+     52.826501
+    ]
+   },
+   "b": {
+    "occurrence_path": "transmission crossmember (1):1",
+    "body_name": "Body14",
+    "body_index": 2,
+    "component": "transmission crossmember (1)",
+    "side": "on_plane",
+    "volume": 0.485063,
+    "center": [
+     0.0,
+     11.312,
+     52.826501
+    ]
+   }
+  }
+ ],
+ "pairs_truncated": false,
+ "unmatched": {
+  "positive": [],
+  "negative": [
+   {
+    "occurrence_path": "driver side:1+Front B Pillar(Mirror) (1):1",
+    "body_name": "Body1",
+    "body_index": 0,
+    "component": "Front B Pillar(Mirror) (1)",
+    "side": "negative",
+    "volume": 45.29267,
+    "center": [
+     -23.137933,
+     48.291513,
+     75.704957
+    ]
+   }
+  ],
+  "on_plane": []
+ },
+ "unmatched_truncated": false,
+ "skipped": {
+  "hidden": 246,
+  "not_solid": 37,
+  "filtered": 0,
+  "unmeasured": 0
+ },
+ "warnings": [],
+ "elapsed_s": 3.01
+}
