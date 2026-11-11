@@ -9,6 +9,7 @@ Zero Fusion 360 dependencies. Fully unit-testable.
 from __future__ import annotations
 
 import math
+import textwrap
 import xml.etree.ElementTree as ET
 from typing import Literal
 
@@ -28,6 +29,14 @@ _REF_CIRCLE_RADIUS = 0.4  # Reference diagram circle radius
 _CUTTING_MARGIN = 0.5  # Extra paper on keep side for cutting grip and labels
 _LOBE_COLORS = ["#4488CC", "#CC7733", "#44AA44", "#AA4488"]
 _WARNING_COLOR = "#CC3333"
+_APEX_COLOR = "#CC3333"
+_NOTE_COLOR = "#333333"
+_MESSAGE_LINE_HEIGHT = 0.13
+_MESSAGE_BLOCK_GAP = 0.07
+_CHAR_WIDTH_SMALL = 0.05  # Conservative average glyph width at _FONT_SIZE_SMALL
+_MIN_WRAP_CHARS = 40
+_MARK_LABEL_CLEARANCE_DEG = 20.0
+_OPPOSITE_TOLERANCE_DEG = 2.0
 
 
 def generate_cope_svg(
@@ -39,7 +48,7 @@ def generate_cope_svg(
     ref_mark_length: float = 0.5,
     location: str = "",
     waste_side: Literal["top", "bottom"] = "top",
-    sampled_profile: list[float] | None = None,
+    notes: list[str] | None = None,
 ) -> str:
     """
     Generate a 1:1 scale SVG wrap template for a cope cut.
@@ -57,57 +66,48 @@ def generate_cope_svg(
         location: Optional location label
         waste_side: "top" = flush with tube end (default), "bottom" = setback
                     from cut (reusable template)
+        notes: Extra page notes from the caller (e.g. cut-length changes),
+               printed with the calculation's warnings
 
     Returns:
         SVG document as a string
     """
     circumference = math.pi * od1
-    max_z = max(result.z_profile) if result.z_profile else 0.0
 
-    # For straight tubes, rotate profile 180° so REF is at template center
-    if has_bends or not result.z_profile:
-        display_profile: list[float] = list(result.z_profile) if result.z_profile else []
-        display_sampled: list[float] | None = (
-            list(sampled_profile) if sampled_profile else None
-        )
-    else:
-        half = len(result.z_profile) // 2
-        display_profile = result.z_profile[half:] + result.z_profile[:half]
-        display_sampled = (
-            sampled_profile[half:] + sampled_profile[:half]
-            if sampled_profile else None
-        )
-
-    # Reflect profiles for outside-surface template wrapping convention.
+    # Reflect for the outside-surface template wrapping convention.
     # The formula computes angles CW from the cope end, but a printed
     # template wrapped around a tube (printed side out) has left-to-right
     # going CCW from the cope end.  Reflecting corrects for this so the
     # physical cope matches the Fusion model.
-    display_profile = _reflect_profile(display_profile)
-    if display_sampled:
-        display_sampled = _reflect_profile(display_sampled)
+    profile = _reflect_profile(list(result.z_profile)) if result.z_profile else []
+
+    # The saddle formula measures z from the receiver's axis crossing, so a
+    # larger receiver leaves a floor under the whole curve.  The bend sheet
+    # cut length runs to the cope's long point, so measure depth from there.
+    z_floor = min(profile) if profile else 0.0
+    profile = [z - z_floor for z in profile]  # max(profile) == _cope_depth()
+
+    # Rotate so the template seam (left/right paper edge) falls in the
+    # widest gap between the dashed REF / 90° / APEX lines.
+    apex = _apex_angle(profile)
+    seam = _choose_seam_angle(apex)
+    display_profile = profile[seam:] + profile[:seam]
+    ref_idx = (360 - seam) % 360
+    grid_idxs = [(90 - seam) % 360, (270 - seam) % 360]
+    apex_idx = None if apex is None else (apex - seam) % 360
 
     flip = waste_side == "bottom"
-
-    # Determine primary profile early so layout dimensions account for its depth
     stroke_width = _PROFILE_STROKE_HEAVY if result.method == "C" else _PROFILE_STROKE
+    max_z = max(display_profile) if display_profile else 0.0
 
-    if display_sampled:
-        primary_profile = _fill_profile_gaps(display_sampled)
-    else:
-        primary_profile = display_profile
-
-    primary_max_z = max(primary_profile) if primary_profile else 0.0
-    if primary_max_z > max_z:
-        max_z = primary_max_z
-
-    # Layout dimensions (using final max_z from whichever profile is deeper)
+    # Layout dimensions
     template_w = circumference
     profile_h = max(max_z, 0.5)
     template_h = profile_h + _CUTTING_MARGIN
 
     # Info block height
-    info_height = _estimate_info_height(result, has_bends, location)
+    messages = _page_messages(result, notes or [], circumference)
+    info_height = _estimate_info_height(result, has_bends, location) + _messages_height(messages)
 
     # Total SVG size (extra 0.25 for depth dimension on right)
     dim_margin = 0.25
@@ -132,23 +132,16 @@ def generate_cope_svg(
         # Default: profile at top, cutting margin below
         profile_y = ty
 
-    # Registration marks use primary profile for APEX position
-    _add_registration_marks(svg, tx, ty, template_w, template_h, primary_profile,
-                            ref_at_center=not has_bends, flip=flip)
+    _add_registration_marks(svg, tx, ty, template_w, template_h,
+                            ref_idx, grid_idxs, apex_idx, flip=flip)
 
-    # Draw profile curve(s)
-    if display_sampled:
-        # Draw formula as light gray reference behind the primary curve
-        _add_profile_curve(svg, tx, profile_y, template_w, profile_h,
-                           display_profile, 0.01, color="#BBBBBB")
-
-    # Draw the primary profile as the solid black cutting guide
+    # The cutting guide
     _add_profile_curve(svg, tx, profile_y, template_w, profile_h,
-                       primary_profile, stroke_width)
+                       display_profile, stroke_width)
 
     # Edge labels on the template itself
     _add_edge_labels(svg, tx, ty, template_w, template_h, profile_y, profile_h,
-                     primary_profile, flip=flip)
+                     display_profile, flip=flip)
 
     # Alignment line (separates profile area from cutting margin)
     if flip:
@@ -168,11 +161,12 @@ def generate_cope_svg(
     # Info section below template
     info_y = ty + template_h + _MARGIN + 0.3
     _add_info_section(svg, tx, info_y, result, od1, tube_name, node_label, has_bends,
-                      ref_mark_length, location, waste_side=waste_side)
+                      ref_mark_length, location, waste_side=waste_side,
+                      messages=messages)
 
     # Reference diagram — positioned below per-pass settings to avoid title overlap
     ref_x = tx + template_w - _REF_CIRCLE_RADIUS - 0.1
-    ref_y = info_y + 0.25 + len(result.passes) * 0.7 + 0.3
+    ref_y = info_y + 0.25 + _messages_height(messages) + len(result.passes) * 0.7 + 0.3
     if result.passes:
         _add_reference_diagram(svg, ref_x, ref_y, result)
 
@@ -205,16 +199,19 @@ def _add_template_background(
 
 def _add_registration_marks(
     svg: ET.Element, x: float, y: float, w: float, h: float,
-    z_profile: list[float] | None = None, ref_at_center: bool = False,
+    ref_idx: int, grid_idxs: list[int], apex_idx: int | None,
     flip: bool = False,
 ) -> None:
-    """Add REF marks, APEX at profile peak, and 90-degree gridlines.
+    """Add the REF mark, APEX at the profile peak, and 90-degree gridlines.
 
     Dashed lines span the full template height (profile + cutting margin).
     Labels are placed vertically in the cutting margin (header) area so
     they survive after cutting along the profile curve.
 
     Args:
+        ref_idx: Display index of the REF (0°) line.
+        grid_idxs: Display indices of the ±90° gridlines.
+        apex_idx: Display index of the profile peak, or None for no profile.
         flip: When True (setback mode), header is at top; when False
               (default mode), header is at bottom.
     """
@@ -229,41 +226,124 @@ def _add_registration_marks(
         # Default: header at bottom — label near alignment line, text extends up
         label_y = y + h - 0.05
 
-    if ref_at_center:
-        # Single REF at center for straight tubes
-        cx = x + w / 2
-        _add_dashed_line(svg, cx, y, cx, y + h, "#22AA44", 0.015)
-        _add_vertical_text(svg, cx + x_offset, label_y, "REF",
-                           _FONT_SIZE_SMALL, "#22AA44")
-    else:
-        # REF at both edges for bent tubes (edges meet at back-of-bend reference)
-        _add_dashed_line(svg, x, y, x, y + h, "#22AA44", 0.015)
-        _add_vertical_text(svg, x + x_offset, label_y, "REF",
-                           _FONT_SIZE_SMALL, "#22AA44")
-        _add_dashed_line(svg, x + w, y, x + w, y + h, "#22AA44", 0.015)
-        _add_vertical_text(svg, x + w + x_offset, label_y, "REF",
-                           _FONT_SIZE_SMALL, "#22AA44")
+    def at(idx: int) -> float:
+        return x + (idx / 360.0) * w
+
+    for gi in grid_idxs:
+        _add_dashed_line(svg, at(gi), y, at(gi), y + h, "#666666", 0.005)
+        _add_vertical_text(svg, at(gi) + x_offset, label_y,
+                           "90\u00b0", _FONT_SIZE_SMALL, "#666666")
+
+    ref_x = at(ref_idx)
+    _add_dashed_line(svg, ref_x, y, ref_x, y + h, "#22AA44", 0.015)
+    _add_vertical_text(svg, ref_x + x_offset, label_y, "REF",
+                       _FONT_SIZE_SMALL, "#22AA44")
 
     # APEX at actual profile peak position
-    if z_profile:
-        peak_idx = max(range(len(z_profile)), key=lambda i: z_profile[i])
-    else:
-        peak_idx = 180
-    apex_x = x + (peak_idx / 360.0) * w
-    _add_dashed_line(svg, apex_x, y, apex_x, y + h, "#CC3333", 0.01)
-    _add_vertical_text(svg, apex_x + x_offset, label_y, "APEX",
-                       _FONT_SIZE_SMALL, "#CC3333")
+    if apex_idx is not None:
+        apex_x = at(apex_idx)
+        _add_dashed_line(svg, apex_x, y, apex_x, y + h, "#CC3333", 0.01)
+        _add_vertical_text(svg, apex_x + x_offset, label_y, "APEX",
+                           _FONT_SIZE_SMALL, "#CC3333")
 
-    # 90-degree and 270-degree gridlines (fixed angular positions)
-    quarter = w / 4
-    center_x = x + w / 2
-    _add_dashed_line(svg, center_x - quarter, y, center_x - quarter, y + h, "#666666", 0.005)
-    _add_vertical_text(svg, center_x - quarter + x_offset, label_y,
-                       "90\u00b0", _FONT_SIZE_SMALL, "#666666")
 
-    _add_dashed_line(svg, center_x + quarter, y, center_x + quarter, y + h, "#666666", 0.005)
-    _add_vertical_text(svg, center_x + quarter + x_offset, label_y,
-                       "90\u00b0", _FONT_SIZE_SMALL, "#666666")
+def _page_messages(
+    result: CopeResult, notes: list[str], width: float,
+) -> list[tuple[str, str]]:
+    """Wrapped (text, color) lines for warnings and caller notes.
+
+    Holesaw warnings are already printed with their pass, so only the
+    calculation's other warnings (skipped or excluded receivers) are added.
+
+    Args:
+        width: Available line width (inches); lines wrap to fit it.
+    """
+    wrap = max(_MIN_WRAP_CHARS, int(width / _CHAR_WIDTH_SMALL))
+    pass_warnings = {p.holesaw_warning for p in result.passes if p.holesaw_warning}
+    lines: list[tuple[str, str]] = []
+    for warning in result.warnings:
+        if warning in pass_warnings:
+            continue
+        for chunk in textwrap.wrap(f"\u26a0 {warning}", wrap):
+            lines.append((chunk, _WARNING_COLOR))
+    for note in notes:
+        for chunk in textwrap.wrap(note, wrap):
+            lines.append((chunk, _NOTE_COLOR))
+    return lines
+
+
+def _messages_height(messages: list[tuple[str, str]]) -> float:
+    """Vertical space taken by page messages (plus a gap after the block)."""
+    if not messages:
+        return 0.0
+    return len(messages) * _MESSAGE_LINE_HEIGHT + _MESSAGE_BLOCK_GAP
+
+
+def _mark_vs_apex_hint(result: CopeResult, rotation_mark: float) -> str:
+    """Relate the rotation mark to the template's APEX line, when it is opposite.
+
+    For a single receiver the deepest cut (APEX) sits 180° from the rotation
+    mark, so aligning the mark with APEX would rotate the tube half a turn.
+    """
+    apex = _apex_angle(result.z_profile)
+    if apex is None:
+        return ""
+    diff = abs((apex - rotation_mark) % 360.0 - 180.0)
+    if diff <= _OPPOSITE_TOLERANCE_DEG:
+        return " (directly opposite the template APEX line)"
+    return ""
+
+
+def _cope_depth(z_profile: list[float]) -> float:
+    """Cope depth from the long point (tube end) to the deepest cut.
+
+    The saddle formula's z is measured from the receiver's axis crossing,
+    so the raw maximum overstates the cut when the receiver is larger than
+    the incoming tube.
+    """
+    if not z_profile:
+        return 0.0
+    return max(z_profile) - min(z_profile)
+
+
+def _apex_angle(profile: list[float]) -> int | None:
+    """Angle (degrees from REF) of the deepest point, or None if no profile."""
+    if not profile:
+        return None
+    return max(range(len(profile)), key=lambda i: profile[i]) % 360
+
+
+def _choose_seam_angle(apex: int | None) -> int:
+    """Pick where the template's paper edges fall around the tube.
+
+    The left and right edges of the wrap template meet at one angle (the
+    seam).  A dashed alignment line on the seam ends up on the paper edge,
+    where it is hard to see and easy to trim off.  Place the seam in the
+    middle of the widest gap between the REF (0°), ±90° gridlines and APEX.
+    Ties go to the gap that leaves REF nearest the template center.
+
+    Args:
+        apex: APEX angle in degrees from REF, or None when there is no profile.
+
+    Returns:
+        Seam angle in whole degrees [0, 360).
+    """
+    marks = {0, 90, 270}
+    if apex is not None:
+        marks.add(apex)
+    ordered = sorted(marks)
+
+    best_seam = 0
+    best_key: tuple[int, int] = (-1, 0)  # (gap width, -REF distance from center)
+    for i, start in enumerate(ordered):
+        stop = ordered[(i + 1) % len(ordered)]
+        gap = (stop - start) % 360 or 360
+        seam = (start + gap // 2) % 360
+        ref_idx = (360 - seam) % 360
+        key = (gap, -abs(ref_idx - 180))
+        if key > best_key:
+            best_key, best_seam = key, seam
+    return best_seam
 
 
 def _add_profile_curve(
@@ -308,61 +388,6 @@ def _reflect_profile(profile: list[float]) -> list[float]:
     if n == 0:
         return profile
     return [profile[(n - i) % n] for i in range(n)]
-
-
-def _fill_profile_gaps(profile: list[float]) -> list[float]:
-    """Fill zero-valued gaps in a sampled profile via linear interpolation.
-
-    The sampled body edge profile has 360 entries (one per degree) but may
-    have gaps (z < 0.001) where no edge data was captured.  This function
-    interpolates linearly between the nearest known points on each side,
-    handling circular wrap-around at 0°/360°.
-
-    If the profile is entirely zero or has no gaps, returns it unchanged.
-    """
-    n = len(profile)
-    if n == 0:
-        return profile
-
-    _THRESHOLD = 0.001
-    has_data = [z > _THRESHOLD for z in profile]
-
-    # Nothing to interpolate if all data or no data
-    if all(has_data) or not any(has_data):
-        return list(profile)
-
-    filled = list(profile)
-
-    # Start iteration from the first data point so gaps never straddle
-    # the iteration boundary — this handles circular wrap-around correctly.
-    first_data = next(i for i in range(n) if has_data[i])
-
-    i = 0
-    while i < n:
-        idx = (first_data + i) % n
-        if not has_data[idx]:
-            gap_start = i
-            while i < n and not has_data[(first_data + i) % n]:
-                i += 1
-
-            # Left boundary is always valid (we started from a data point)
-            left_idx = (first_data + gap_start - 1) % n
-            left_val = filled[left_idx]
-
-            # Right boundary: if i == n, it wraps back to first_data
-            right_idx = (first_data + i) % n if i < n else first_data
-            right_val = filled[right_idx]
-
-            gap_len = i - gap_start
-            for j in range(gap_len):
-                t = (j + 1) / (gap_len + 1)
-                filled[(first_data + gap_start + j) % n] = (
-                    left_val + t * (right_val - left_val)
-                )
-        else:
-            i += 1
-
-    return filled
 
 
 def _add_multi_pass_profile(
@@ -469,20 +494,24 @@ def _add_edge_labels(
         _add_text(svg, x + w / 2, y + 0.12,
                   "\u2190 REFERENCE EDGE \u2014 place at cope depth from tube end \u2192",
                   _FONT_SIZE_SMALL, "#666666", "middle")
-        # Bottom label: waste below the profile curve
-        _add_text(svg, x + w / 2, y + template_h - 0.04,
-                  "WASTE \u2014 discard below curve",
+        # Bottom label: waste below the profile curve, where the curve is high
+        waste_text = "WASTE \u2014 discard below curve"
+        _add_text(svg, _label_center_x(z_profile, x, w, waste_text, prefer_high=True),
+                  y + template_h - 0.04, waste_text,
                   _FONT_SIZE_SMALL, "#AAAAAA", "middle")
     else:
         # Default mode: waste at top, tube end at bottom
         # Bottom label: "TUBE END — align flush"
+        # Each label goes where the curve leaves it clear
         bottom_y = profile_y + profile_h
-        _add_text(svg, x + w / 2, bottom_y - 0.04,
-                  "\u2190 TUBE END \u2014 align flush \u2192",
+        end_text = "\u2190 TUBE END \u2014 align flush \u2192"
+        _add_text(svg, _label_center_x(z_profile, x, w, end_text, prefer_high=True),
+                  bottom_y - 0.04, end_text,
                   _FONT_SIZE_SMALL, "#666666", "middle")
         # Top label: "WASTE — discard after cutting"
-        _add_text(svg, x + w / 2, y + 0.12,
-                  "WASTE \u2014 discard above curve",
+        waste_text = "WASTE \u2014 discard above curve"
+        _add_text(svg, _label_center_x(z_profile, x, w, waste_text, prefer_high=False),
+                  y + 0.12, waste_text,
                   _FONT_SIZE_SMALL, "#AAAAAA", "middle")
 
     # Scissors + "CUT LINE" near the profile curve start
@@ -492,6 +521,41 @@ def _add_edge_labels(
         start_py = profile_y + profile_h - (start_z / max_z) * profile_h
         _add_text(svg, x + 0.05, start_py - 0.04,
                   "\u2702 CUT LINE", _FONT_SIZE_SMALL, "#000000", "start")
+
+
+def _label_center_x(
+    z_profile: list[float], x: float, w: float, text: str, prefer_high: bool,
+) -> float:
+    """Horizontal center for a label so the profile curve does not cross it.
+
+    Slides a window the label's width across the profile (never across the
+    seam) and picks where the curve stays highest (labels on the tube-end
+    line) or lowest (labels along the top edge). Ties go to the center.
+
+    Args:
+        z_profile: Display profile (left-to-right on the template).
+        x: Template left x.
+        w: Template width.
+        text: Label text (sets the window width).
+        prefer_high: True to find where the curve is high, False for low.
+    """
+    n = len(z_profile)
+    center = x + w / 2
+    label_w = len(text) * _CHAR_WIDTH_SMALL
+    span = max(1, int(math.ceil(label_w / w * n))) if w > 0 else n
+    if n == 0 or span >= n:
+        return center
+
+    best_start = 0
+    best_key: tuple[float, float] | None = None
+    for start in range(n - span + 1):
+        window = z_profile[start:start + span]
+        clearance = min(window) if prefer_high else -max(window)
+        offset = abs((start + span / 2) / n - 0.5)
+        key = (round(clearance, 6), -offset)
+        if best_key is None or key > best_key:
+            best_key, best_start = key, start
+    return x + (best_start + span / 2) / n * w
 
 
 def _add_depth_dimension(
@@ -546,6 +610,7 @@ def _add_info_section(
     ref_mark_length: float = 0.5,
     location: str = "",
     waste_side: Literal["top", "bottom"] = "top",
+    messages: list[tuple[str, str]] | None = None,
 ) -> None:
     """Add the information section below the template."""
     line_y = y
@@ -589,7 +654,7 @@ def _add_info_section(
         line_y += 0.15
 
     # Cope depth
-    max_z = max(result.z_profile) if result.z_profile else 0.0
+    max_z = _cope_depth(result.z_profile)
     _add_text(svg, x, line_y, f"Cope depth: {max_z:.3f}\" from tube end",
               _FONT_SIZE_SMALL, "#333333", "start")
     line_y += 0.15
@@ -598,6 +663,13 @@ def _add_info_section(
     _add_text(svg, x, line_y, f"Reference: {result.reference_description}",
               _FONT_SIZE_SMALL, "#333333", "start")
     line_y += 0.2
+
+    # Warnings and caller notes (cut-length changes, excluded receivers)
+    for text, color in messages or []:
+        _add_text(svg, x, line_y, text, _FONT_SIZE_SMALL, color, "start")
+        line_y += _MESSAGE_LINE_HEIGHT
+    if messages:
+        line_y += _MESSAGE_BLOCK_GAP
 
     # Per-pass details
     for i, cope_pass in enumerate(result.passes):
@@ -642,7 +714,7 @@ def _add_info_section(
 
     # Print verification
     circumference = math.pi * od1
-    max_z = max(result.z_profile) if result.z_profile else 0.0
+    max_z = _cope_depth(result.z_profile)
     line_y += 0.1
     line_y = _add_print_verification(svg, x, line_y, circumference)
     line_y += 0.1
@@ -747,7 +819,7 @@ def _add_notcher_procedure_a(
     _add_text(svg, x, y, "NOTCHER PROCEDURE:", _FONT_SIZE_LABEL, "#2266AA", "start")
     steps = [
         f"1. Set notcher degree wheel to {cope_pass.notcher_angle:.1f}\u00b0",
-        f"2. Mark tube at {cope_pass.rotation_mark:.1f}\u00b0 CW from reference (or align to template APEX mark)",
+        f"2. Mark tube at {cope_pass.rotation_mark:.1f}\u00b0 CW from reference{_mark_vs_apex_hint(result, cope_pass.rotation_mark)}",
         "3. Align the rotation mark with the center of the holesaw",
         "4. Push tube through the holesaw in a single continuous pass",
         "5. Compare cut profile against the printed template to verify",
@@ -830,7 +902,11 @@ def _add_bent_tube_procedure(
 def _add_reference_diagram(
     svg: ET.Element, cx: float, cy: float, result: CopeResult,
 ) -> None:
-    """Add cross-section reference diagram showing rotation angle."""
+    """Add cross-section diagram: REF at top, rotation mark, and APEX.
+
+    Angles are CW from REF viewed from the coped end, matching the
+    "CW from reference" wording in the settings.
+    """
     r = _REF_CIRCLE_RADIUS
 
     # Circle
@@ -842,9 +918,9 @@ def _add_reference_diagram(
     circle.set("stroke", "#333333")
     circle.set("stroke-width", "0.01")
 
-    # 0-degree mark (top = back of bend)
+    # 0-degree mark (top = REF, back of bend)
     _add_line(svg, cx, cy - r, cx, cy - r - 0.1, "#000000", 0.015)
-    _add_text(svg, cx, cy - r - 0.12, "0\u00b0", _FONT_SIZE_SMALL, "#000000", "middle")
+    _add_text(svg, cx, cy - r - 0.12, "0\u00b0 REF", _FONT_SIZE_SMALL, "#000000", "middle")
 
     # Rotation mark for first pass
     if result.passes:
@@ -854,11 +930,29 @@ def _add_reference_diagram(
         mark_y = cy - r * math.cos(angle_rad)
         _add_line(svg, cx, cy, mark_x, mark_y, _WARNING_COLOR, 0.015)
 
-        # Arrow label
-        label_x = cx + (r + 0.15) * math.sin(angle_rad)
-        label_y = cy - (r + 0.15) * math.cos(angle_rad)
-        _add_text(svg, label_x, label_y, "Apex",
-                  _FONT_SIZE_SMALL, _WARNING_COLOR, "middle")
+        # Label; beside the "0° REF" label when the mark is near the top
+        near_top = min(
+            result.passes[0].rotation_mark % 360.0,
+            360.0 - result.passes[0].rotation_mark % 360.0,
+        ) < _MARK_LABEL_CLEARANCE_DEG
+        if near_top:
+            _add_text(svg, cx + 0.3, cy - r - 0.12, "Mark",
+                      _FONT_SIZE_SMALL, _WARNING_COLOR, "start")
+        else:
+            label_x = cx + (r + 0.15) * math.sin(angle_rad)
+            label_y = cy - (r + 0.15) * math.cos(angle_rad)
+            _add_text(svg, label_x, label_y, "Mark",
+                      _FONT_SIZE_SMALL, _WARNING_COLOR, "middle")
+
+    # Deepest cut — the same point as the template's APEX line
+    apex = _apex_angle(result.z_profile)
+    if apex is not None:
+        apex_rad = math.radians(apex)
+        _add_dashed_line(svg, cx, cy, cx + r * math.sin(apex_rad),
+                         cy - r * math.cos(apex_rad), _APEX_COLOR, 0.01)
+        _add_text(svg, cx + (r + 0.15) * math.sin(apex_rad),
+                  cy - (r + 0.15) * math.cos(apex_rad) + 0.03, "APEX",
+                  _FONT_SIZE_SMALL, _APEX_COLOR, "middle")
 
 
 def _estimate_info_height(result: CopeResult, has_bends: bool, location: str = "") -> float:

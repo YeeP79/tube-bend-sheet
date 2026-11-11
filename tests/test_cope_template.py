@@ -5,8 +5,16 @@ Run with: pytest tests/test_cope_template.py -v
 import math
 import xml.etree.ElementTree as ET
 
+import pytest
+
 from core.cope_math import calculate_cope
-from core.cope_template import generate_cope_svg
+from core.cope_template import (
+    _apex_angle,
+    _label_center_x,
+    _choose_seam_angle,
+    _reflect_profile,
+    generate_cope_svg,
+)
 from models.cope_data import ReceivingTube
 
 
@@ -413,8 +421,8 @@ class TestRefMarks:
         svg = generate_cope_svg(result, 1.75, "Tube1", "", False)
         assert svg.count("REF") >= 2  # REF label + REF in usage instructions
 
-    def test_ref_marks_at_edges_for_bent_tubes(self):
-        """Bent tubes: REF marks at both template edges (back-of-bend reference)."""
+    def test_single_ref_mark_for_bent_tubes(self):
+        """Bent tubes: one REF line, not split across both paper edges."""
         od = 1.75
         result = _make_single_pass_result(od)
         svg = generate_cope_svg(result, od, "Tube1", "", True)
@@ -425,7 +433,7 @@ class TestRefMarks:
             t for t in root.findall(".//svg:text", ns)
             if t.text == "REF"
         ]
-        assert len(ref_texts) == 2
+        assert len(ref_texts) == 1
 
     def test_ref_at_center_for_straight_tubes(self):
         """Straight tubes: single REF mark at template center."""
@@ -465,10 +473,10 @@ class TestApexPosition:
         root = ET.fromstring(svg)
         ns = {"svg": "http://www.w3.org/2000/svg"}
 
-        # Find APEX text element
+        # Find the template's APEX label (vertical text; the diagram has its own)
         apex_texts = [
             t for t in root.findall(".//svg:text", ns)
-            if t.text == "APEX"
+            if t.text == "APEX" and t.get("transform")
         ]
         assert len(apex_texts) == 1
         apex_x = float(apex_texts[0].get("x", "0"))
@@ -476,7 +484,10 @@ class TestApexPosition:
         # Calculate expected position (small x-offset nudges label right of dashed line)
         circumference = math.pi * od
         margin = 0.3  # _MARGIN
-        peak_idx = max(range(len(result.z_profile)), key=lambda i: result.z_profile[i])
+        profile = _reflect_profile(result.z_profile)
+        apex = _apex_angle(profile)
+        assert apex is not None
+        peak_idx = (apex - _choose_seam_angle(apex)) % 360
         expected_x = margin + (peak_idx / 360.0) * circumference
         assert abs(apex_x - expected_x) < 0.05  # Allow for x_offset nudge
 
@@ -748,99 +759,6 @@ class TestSetbackLayout:
         assert "scale bar" in svg
 
 
-class TestFillProfileGaps:
-    """Tests for _fill_profile_gaps linear interpolation."""
-
-    def test_no_gaps_returns_unchanged(self):
-        """Profile with no gaps should be returned as-is."""
-        from core.cope_template import _fill_profile_gaps
-        profile = [float(i) for i in range(1, 361)]
-        result = _fill_profile_gaps(profile)
-        assert result == profile
-
-    def test_all_zero_returns_unchanged(self):
-        """All-zero profile should be returned as-is (nothing to interpolate from)."""
-        from core.cope_template import _fill_profile_gaps
-        profile = [0.0] * 360
-        result = _fill_profile_gaps(profile)
-        assert result == profile
-
-    def test_empty_returns_unchanged(self):
-        """Empty profile should be returned as-is."""
-        from core.cope_template import _fill_profile_gaps
-        result = _fill_profile_gaps([])
-        assert result == []
-
-    def test_single_gap_interpolated(self):
-        """A single zero between two known values should be linearly interpolated."""
-        from core.cope_template import _fill_profile_gaps
-        profile = [1.0, 0.0, 3.0] + [1.0] * 357
-        result = _fill_profile_gaps(profile)
-        assert abs(result[1] - 2.0) < 0.01
-
-    def test_multi_point_gap_interpolated(self):
-        """A multi-point gap should be linearly interpolated."""
-        from core.cope_template import _fill_profile_gaps
-        profile = [1.0] * 360
-        profile[5] = 0.0
-        profile[6] = 0.0
-        profile[7] = 0.0
-        # Known points: profile[4]=1.0, profile[8]=1.0, gap = 3 points
-        # All should interpolate to 1.0
-        result = _fill_profile_gaps(profile)
-        assert abs(result[5] - 1.0) < 0.01
-        assert abs(result[6] - 1.0) < 0.01
-        assert abs(result[7] - 1.0) < 0.01
-
-    def test_gap_with_different_endpoints(self):
-        """Gap between 2.0 and 6.0 should interpolate linearly."""
-        from core.cope_template import _fill_profile_gaps
-        profile = [1.0] * 360
-        profile[10] = 2.0
-        profile[11] = 0.0
-        profile[12] = 0.0
-        profile[13] = 6.0
-        result = _fill_profile_gaps(profile)
-        # 2 gap points between 2.0 and 6.0: t=1/3 → 3.33, t=2/3 → 4.67
-        assert abs(result[11] - 3.333) < 0.01
-        assert abs(result[12] - 4.667) < 0.01
-
-    def test_wraparound_gap(self):
-        """Gap spanning 0°/360° boundary should interpolate correctly."""
-        from core.cope_template import _fill_profile_gaps
-        profile = [1.0] * 360
-        profile[358] = 2.0
-        profile[359] = 0.0
-        profile[0] = 0.0
-        profile[1] = 4.0
-        result = _fill_profile_gaps(profile)
-        # Gap of 2 points between 2.0 (idx 358) and 4.0 (idx 1)
-        assert abs(result[359] - 2.667) < 0.01
-        assert abs(result[0] - 3.333) < 0.01
-
-    def test_sampled_profile_used_as_primary(self):
-        """When sampled_profile is provided, the SVG should use it as the primary curve."""
-        result = _make_single_pass_result()
-        sampled = [0.5] * 360  # Constant depth
-        svg = generate_cope_svg(result, 1.75, "Tube1", "", False,
-                                sampled_profile=sampled)
-        root = ET.fromstring(svg)
-        # Should still produce valid SVG
-        assert root.tag == "{http://www.w3.org/2000/svg}svg" or root.tag == "svg"
-
-    def test_sampled_profile_none_uses_formula(self):
-        """When sampled_profile is None, the formula profile should be used."""
-        result = _make_single_pass_result()
-        svg_without = generate_cope_svg(result, 1.75, "Tube1", "", False,
-                                        sampled_profile=None)
-        svg_with = generate_cope_svg(result, 1.75, "Tube1", "", False,
-                                     sampled_profile=[0.5] * 360)
-        # Both should be valid SVG but differ (different primary profiles)
-        ET.fromstring(svg_without)
-        ET.fromstring(svg_with)
-        assert svg_without != svg_with
-
-
 class TestReflectProfile:
     """Tests for _reflect_profile outside-surface wrapping convention."""
 
@@ -887,3 +805,232 @@ class TestReflectProfile:
         result = _reflect_profile(profile)
         for i in range(360):
             assert abs(result[i] - profile[i]) < 1e-10
+
+
+# ---------------------------------------------------------------------------
+# Seam placement, long-point depth, single cut line
+# ---------------------------------------------------------------------------
+def _make_leg_on_axle_result(axle_od: float = 3.0):
+    """Trapezoid-frame leg at 43.1° landing on a horizontal axle."""
+    a = math.radians(43.1)
+    return calculate_cope(
+        v1=(-math.cos(a), -math.sin(a), 0.0),
+        od1=1.75,
+        receiving_tubes=[ReceivingTube(vector=(1.0, 0.0, 0.0), od=axle_od)],
+        reference_vector=(-math.sin(a), math.cos(a), 0.0),
+    )
+
+
+def _dashed_line_xs(svg: str) -> list[float]:
+    root = ET.fromstring(svg)
+    return [
+        float(el.get("x1", "0"))
+        for el in root.iter()
+        if el.tag.endswith("line") and el.get("stroke-dasharray")
+    ]
+
+
+class TestChooseSeamAngle:
+    """The paper seam goes in the widest gap between dashed lines."""
+
+    def test_apex_opposite_ref_ties_resolve_toward_centered_ref(self):
+        # Marks 0/90/180/270 → four 90° gaps; REF ends up 45° off center
+        assert _choose_seam_angle(180) == 135
+
+    def test_apex_on_ref_puts_ref_at_center(self):
+        # Marks 0/90/270 → widest gap 90..270 → seam 180, REF centered
+        assert _choose_seam_angle(0) == 180
+
+    def test_no_apex(self):
+        assert _choose_seam_angle(None) == 180
+
+    def test_seam_never_on_a_mark(self):
+        for apex in range(360):
+            seam = _choose_seam_angle(apex)
+            for mark in (0, 90, 270, apex):
+                dist = min((seam - mark) % 360, (mark - seam) % 360)
+                assert dist >= 45
+
+
+class TestApexAngle:
+
+    def test_empty(self):
+        assert _apex_angle([]) is None
+
+    def test_first_of_equal_peaks(self):
+        profile = [0.0] * 360
+        profile[90] = profile[270] = 2.0
+        assert _apex_angle(profile) == 90
+
+
+class TestTemplateLayout:
+    """Printed template: dashed lines clear of paper edges, one cut line."""
+
+    @pytest.mark.parametrize("has_bends", [True, False])
+    @pytest.mark.parametrize("make", [
+        _make_single_pass_result, _make_multi_pass_result, _make_leg_on_axle_result,
+    ])
+    def test_no_dashed_line_near_paper_edge(self, make, has_bends):
+        od = 1.75
+        svg = generate_cope_svg(make(), od, "Tube1", "", has_bends)
+        w = math.pi * od
+        left, right = 0.3, 0.3 + w  # _MARGIN
+        min_clearance = w * 30.0 / 360.0
+        xs = _dashed_line_xs(svg)
+        assert xs
+        for x in xs:
+            assert x - left >= min_clearance
+            assert right - x >= min_clearance
+
+    def test_no_grey_reference_curve(self):
+        svg = generate_cope_svg(_make_leg_on_axle_result(), 1.75, "Tube1", "", True)
+        assert "#BBBBBB" not in svg
+        root = ET.fromstring(svg)
+        paths = [el for el in root.iter() if el.tag.endswith("path")]
+        assert len(paths) == 1
+
+    def test_curve_touches_tube_end_line(self):
+        """Long point sits on the TUBE END edge — no extra stock cut away."""
+        svg = generate_cope_svg(_make_leg_on_axle_result(), 1.75, "Tube1", "", True)
+        root = ET.fromstring(svg)
+        path = next(el for el in root.iter() if el.tag.endswith("path"))
+        ys = [float(pt[1:].split(",")[1]) for pt in path.get("d", "").split()]
+        align = next(
+            el for el in root.iter()
+            if el.tag.endswith("line") and el.get("stroke-width") == "0.02"
+        )
+        assert max(ys) == pytest.approx(float(align.get("y1", "0")), abs=1e-3)
+
+    @pytest.mark.parametrize("waste_side", ["top", "bottom"])
+    def test_depth_is_long_point_to_heel(self, waste_side):
+        """3" axle under a 1.75" leg at 43.1°: heel is 1.870" behind the long point.
+
+        The dimension, the info text and the usage steps must all agree.
+        """
+        svg = generate_cope_svg(
+            _make_leg_on_axle_result(), 1.75, "Tube1", "", True, waste_side=waste_side,
+        )
+        assert 'Cope depth: 1.870"' in svg
+        assert '>1.870"<' in svg
+        assert "3.130" not in svg
+
+    def test_receiver_axis_sign_does_not_change_template(self):
+        a = math.radians(43.1)
+        v1 = (-math.cos(a), -math.sin(a), 0.0)
+        ref = (-math.sin(a), math.cos(a), 0.0)
+        svgs = [
+            generate_cope_svg(
+                calculate_cope(v1, 1.75, [ReceivingTube(axle, 3.0)], ref),
+                1.75, "Tube1", "", True,
+            )
+            for axle in ((1.0, 0.0, 0.0), (-1.0, 0.0, 0.0))
+        ]
+        assert svgs[0] == svgs[1]
+
+
+class TestPageMessagesAndProcedureText:
+    """Warnings/notes are printed; rotation mark and APEX are not conflated."""
+
+    def test_calculation_warnings_printed(self):
+        # Shallow 2nd receiver is excluded from the profile with a warning
+        result = calculate_cope(
+            v1=(0.0, 0.0, 1.0),
+            od1=1.75,
+            receiving_tubes=[
+                ReceivingTube((1.0, 0.0, 0.0), 1.75, "Rail"),
+                ReceivingTube((0.0, 0.1, 1.0), 1.75, "Brace"),
+            ],
+        )
+        assert any("Brace" in w for w in result.warnings)
+        svg = generate_cope_svg(result, 1.75, "Tube1", "", False)
+        assert "Brace" in svg
+        assert "⚠" in svg
+
+    def test_holesaw_warning_not_duplicated(self):
+        result = _make_leg_on_axle_result()
+        warning = result.passes[0].holesaw_warning
+        assert warning
+        svg = generate_cope_svg(result, 1.75, "Tube1", "", True)
+        assert svg.count(warning[:40]) == 1
+
+    def test_notes_printed_and_wrapped(self):
+        note = "Cut length adds 1.260\" at this end " + "x" * 120
+        svg = generate_cope_svg(_make_leg_on_axle_result(), 1.75, "Tube1", "", True,
+                                notes=[note])
+        root = ET.fromstring(svg)
+        texts = [t.text or "" for t in root.iter() if t.tag.endswith("text")]
+        assert any(t.startswith("Cut length adds 1.260") for t in texts)
+        width_chars = int(math.pi * 1.75 / 0.05)
+        assert all(len(t) <= width_chars for t in texts if "xxx" in t)
+
+    def test_messages_grow_the_page(self):
+        result = _make_leg_on_axle_result()
+        plain = ET.fromstring(generate_cope_svg(result, 1.75, "T", "", True))
+        noted = ET.fromstring(generate_cope_svg(result, 1.75, "T", "", True,
+                                                notes=["a", "b", "c"]))
+        h = lambda el: float(el.get("height", "0in").rstrip("in"))  # noqa: E731
+        assert h(noted) == pytest.approx(h(plain) + 3 * 0.13 + 0.07)
+
+    def test_step_two_says_opposite_apex(self):
+        svg = generate_cope_svg(_make_leg_on_axle_result(), 1.75, "Tube1", "", True)
+        assert "directly opposite the template APEX line" in svg
+        assert "align to template APEX mark" not in svg
+
+    def test_diagram_labels_mark_and_apex_opposite(self):
+        result = _make_leg_on_axle_result()
+        svg = generate_cope_svg(result, 1.75, "Tube1", "", True)
+        root = ET.fromstring(svg)
+        texts = {t.text: t for t in root.iter()
+                 if t.tag.endswith("text") and not t.get("transform")}
+        assert "Mark" in texts and "APEX" in texts and "0\u00b0 REF" in texts
+        assert "Apex" not in texts
+        # Mark at 0° (top), APEX at 180° (bottom) of the diagram circle
+        assert float(texts["Mark"].get("y", "0")) < float(texts["APEX"].get("y", "0"))
+        # Mark at 0° sits beside the REF label rather than on top of it
+        assert float(texts["Mark"].get("x", "0")) > float(texts["0\u00b0 REF"].get("x", "0")) + 0.2
+
+    def test_reference_description_names_bend_center(self):
+        svg = generate_cope_svg(_make_leg_on_axle_result(), 1.75, "Tube1", "", True)
+        assert "facing away from the bend center" in svg
+        assert "holesaw center" not in svg.split("NOTCHER PROCEDURE")[0]
+
+
+class TestLabelPlacement:
+    """Template labels avoid the cut curve."""
+
+    def test_tube_end_label_sits_where_curve_is_high(self):
+        profile = [0.0] * 180 + [1.0] * 180
+        cx = _label_center_x(profile, 0.0, 6.0, "abc", prefer_high=True)
+        assert cx > 3.0
+
+    def test_waste_label_sits_where_curve_is_low(self):
+        profile = [0.0] * 180 + [1.0] * 180
+        cx = _label_center_x(profile, 0.0, 6.0, "abc", prefer_high=False)
+        assert cx < 3.0
+
+    def test_flat_profile_centers_label(self):
+        cx = _label_center_x([1.0] * 360, 0.3, 6.0, "abc", prefer_high=True)
+        assert cx == pytest.approx(3.3, abs=0.02)
+
+    def test_empty_or_too_wide(self):
+        assert _label_center_x([], 0.0, 4.0, "abc", True) == 2.0
+        assert _label_center_x([1.0] * 360, 0.0, 0.1, "x" * 50, True) == 0.05
+
+    @pytest.mark.parametrize("waste_side", ["top", "bottom"])
+    def test_tube_end_line_label_clear_of_curve(self, waste_side):
+        """The label on the long-point line must not overlap the curve."""
+        result = _make_leg_on_axle_result()
+        svg = generate_cope_svg(result, 1.75, "T", "", True, waste_side=waste_side)
+        root = ET.fromstring(svg)
+        label = "TUBE END" if waste_side == "top" else "discard below"
+        el = next(t for t in root.iter()
+                  if t.tag.endswith("text") and label in (t.text or ""))
+        cx = float(el.get("x", "0"))
+        half = len(el.text or "") * 0.05 / 2
+        path = next(p for p in root.iter() if p.tag.endswith("path"))
+        pts = [tuple(map(float, pt[1:].split(","))) for pt in path.get("d", "").split()]
+        label_y = float(el.get("y", "0"))
+        under = [py for px, py in pts if cx - half <= px <= cx + half]
+        assert under
+        # Curve stays at least a text-height above the label baseline
+        assert max(under) < label_y - 0.09

@@ -13,6 +13,7 @@ import adsk.core
 from ...models import UnitConfig
 from ...storage import ProfileManager
 from ...core import format_length
+from ...core.cope_status import EndConnection, build_cope_status_lines
 from ...core.tolerances import TUBE_OD_MATCH_CM
 from ..createBendSheet.die_filter import DieFilter
 
@@ -50,6 +51,9 @@ class TubeFabDialogBuilder:
         """
         # Read-only info section
         self._build_info_section(analysis)
+
+        # Cope connection status per end
+        self._build_cope_status(analysis)
 
         # Bender/die dropdowns
         self._build_bender_dropdown(analysis)
@@ -105,6 +109,24 @@ class TubeFabDialogBuilder:
         info_html = "<br>".join(info_lines)
         self._inputs.addTextBoxCommandInput(
             "body_info", "", info_html, len(info_lines), True,
+        )
+
+    def _build_cope_status(self, analysis: "BodyAnalysisResult") -> None:
+        """Show per-end connection status so the user knows which copes print."""
+        # Labels match the cope page headings built in build_cope_pages()
+        ends = [
+            EndConnection(
+                label=f"{analysis.opposite_direction} End",
+                receiver_names=[r[0].name for r in analysis.start_receiving],
+            ),
+            EndConnection(
+                label=f"{analysis.travel_direction} End",
+                receiver_names=[r[0].name for r in analysis.end_receiving],
+            ),
+        ]
+        lines = build_cope_status_lines(ends)
+        self._inputs.addTextBoxCommandInput(
+            "cope_status", "", "<br>".join(lines), len(lines), True,
         )
 
     def _build_bender_dropdown(self, analysis: "BodyAnalysisResult") -> None:

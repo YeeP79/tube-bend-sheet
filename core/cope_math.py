@@ -7,7 +7,7 @@ returns CopeResult. Fully unit-testable without Fusion.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal
 
 from ..models.cope_data import CopePass, CopeResult, ReceivingTube
@@ -94,6 +94,15 @@ def calculate_cope(
             name = rt.name or f"tube {i + 1}"
             parallel_warnings.append(
                 f"Receiver '{name}' skipped: parallel/anti-parallel to incoming tube."
+            )
+        elif dot_product(v1_norm, rt_norm) < 0.0:
+            # A tube axis has no inherent direction (Fusion reports cylinder
+            # axes with arbitrary sign). The saddle formula's azimuth origin
+            # assumes dot(v1, v2) >= 0; an opposed axis rotates the whole
+            # profile 180°. Orient every receiver the same way.
+            v = rt.vector
+            non_parallel_tubes.append(
+                replace(rt, vector=(-v[0], -v[1], -v[2]))
             )
         else:
             non_parallel_tubes.append(rt)

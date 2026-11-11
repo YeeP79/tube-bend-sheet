@@ -8,7 +8,7 @@ Both the bend calculator and cope calculator import from here.
 ROTATION_REFERENCE = "back_of_last_bend_extrados"
 ROTATION_DIRECTION = "clockwise_from_coped_end"
 ROTATION_ZERO_DESCRIPTION = (
-    "Outside of last curve (extrados), facing away from holesaw center"
+    "Outside of last bend (extrados), facing away from the bend center"
 )
 
 # Fallback label for straight tubes (no bends)

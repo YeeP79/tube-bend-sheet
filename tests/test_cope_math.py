@@ -1439,3 +1439,69 @@ class TestInvalidOD:
                 od1=1.75,
                 receiving_tubes=[ReceivingTube(vector=(0.0, 1.0, 0.0), od=-1.0)],
             )
+
+
+class TestReceiverAxisSignInvariance:
+    """A receiving tube's axis is a line — its vector sign must not matter.
+
+    Fusion reports cylinder axes with arbitrary sign, so a flipped receiver
+    vector must produce the identical z-profile.
+    """
+
+    @staticmethod
+    def _leg() -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+        # Left leg of a trapezoid frame at 43.1° to a horizontal axle:
+        # outward tube direction and its back-of-bend (extrados) direction
+        a = math.radians(43.1)
+        return (-math.cos(a), -math.sin(a), 0.0), (-math.sin(a), math.cos(a), 0.0)
+
+    @pytest.mark.parametrize("od2", [1.75, 3.0])
+    def test_flipped_receiver_gives_identical_profile(self, od2: float) -> None:
+        v1, ref = self._leg()
+        plus = calculate_cope(v1, 1.75, [ReceivingTube((1.0, 0.0, 0.0), od2)], ref)
+        minus = calculate_cope(v1, 1.75, [ReceivingTube((-1.0, 0.0, 0.0), od2)], ref)
+        assert plus.z_profile == pytest.approx(minus.z_profile, abs=1e-9)
+        assert [p.rotation_mark for p in plus.passes] == pytest.approx(
+            [p.rotation_mark for p in minus.passes], abs=1e-9,
+        )
+
+    @pytest.mark.parametrize("od2", [1.75, 3.0])
+    def test_profile_matches_raycast_intersection(self, od2: float) -> None:
+        """Formula depth (from the long point) equals a brute-force ray cast.
+
+        Each OD surface line of the incoming tube is marched along the tube
+        axis until it enters the receiving cylinder; cut depth at that
+        azimuth is how much shorter it is than the longest line.
+        """
+        v1, ref = self._leg()
+        r1, r2 = 0.875, od2 / 2.0
+        k = (0.0, 0.0, 1.0)
+        hits: list[float] = []
+        for deg in range(0, 360, 15):
+            c, s = math.cos(math.radians(deg)), math.sin(math.radians(deg))
+            start = [-20.0 * v1[i] + r1 * (c * ref[i] + s * k[i]) for i in range(3)]
+            lo, hi = 0.0, 40.0
+            for _ in range(60):
+                mid = (lo + hi) / 2.0
+                p = [start[i] + mid * v1[i] for i in range(3)]
+                if p[1] ** 2 + p[2] ** 2 <= r2 * r2:
+                    hi = mid
+                else:
+                    lo = mid
+            hits.append(hi)
+        longest = max(hits)
+        truth = [longest - t for t in hits]
+
+        for axle in ((1.0, 0.0, 0.0), (-1.0, 0.0, 0.0)):
+            z = calculate_cope(v1, 1.75, [ReceivingTube(axle, od2)], ref).z_profile
+            z_min = min(z)
+            formula = [z[d] - z_min for d in range(0, 360, 15)]
+            assert formula == pytest.approx(truth, abs=1e-6)
+
+    def test_deepest_cut_is_inside_of_bend(self) -> None:
+        """Leg leaning onto an axle: heel (deepest cut) faces the intrados."""
+        v1, ref = self._leg()
+        for axle in ((1.0, 0.0, 0.0), (-1.0, 0.0, 0.0)):
+            z = calculate_cope(v1, 1.75, [ReceivingTube(axle, 3.0)], ref).z_profile
+            assert max(range(360), key=z.__getitem__) == 180
+            assert min(range(360), key=z.__getitem__) == 0

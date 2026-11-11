@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 from ..models.bend_data import BendSheetData
@@ -35,8 +35,11 @@ class CopePageData:
         od1: Tube OD in display units (inches).
         tube_name: Name of the incoming tube.
         has_bends: Whether the tube has bends (affects SVG instructions).
-        sampled_profile: Body edge profile sampled from the Fusion model
-            (360 floats in display units). None when not available.
+        path_end: Which end of the analysed path this page is for.
+        length_adjustment: Length added to this end's straight so the tube
+            ends at the cope's long point (display units; negative = trim).
+            None when it could not be determined.
+        notes: Extra lines printed on the template (e.g. cut-length change).
     """
     end_label: str
     cope_result: CopeResult
@@ -45,7 +48,9 @@ class CopePageData:
     has_bends: bool
     location: str = ""
     waste_side: Literal["top", "bottom"] = "top"
-    sampled_profile: list[float] | None = None
+    path_end: Literal["start", "end"] = "start"
+    length_adjustment: float | None = None
+    notes: list[str] = field(default_factory=list)
 
 
 def generate_combined_document(
@@ -122,7 +127,7 @@ def _render_cope_page(page: CopePageData, *, is_first: bool = False) -> str:
         has_bends=page.has_bends,
         location=page.location,
         waste_side=page.waste_side,
-        sampled_profile=page.sampled_profile,
+        notes=page.notes,
     )
 
     # Strip XML declaration — not valid inside HTML

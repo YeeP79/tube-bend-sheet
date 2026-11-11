@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "agent-mesh": {
+      "command": "mcp-pool",
+      "args": [
+        "proxy",
+        "agent-mesh"
+      ]
+    },
+    "web-fetch": {
+      "command": "mcp-pool",
+      "args": [
+        "proxy",
+        "web-fetch"
+      ]
+    }
+  }
+}

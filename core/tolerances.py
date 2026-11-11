@@ -102,3 +102,9 @@ OD_FILTER_TOLERANCE_CM: float = 0.01
 # Endpoint tolerance (cm) for sketch entity connectivity detection
 # (line-to-line, line-to-arc, arc-to-arc endpoint coincidence).
 SKETCH_ENDPOINT_TOLERANCE_CM: float = 0.05
+
+# Maximum offset between the incoming and receiving tube centerlines, as a
+# ratio of the incoming tube's OD radius, for the cope-end length correction.
+# The saddle formula assumes the centerlines intersect; beyond this offset the
+# long-point position is not trustworthy and the cut length is left alone.
+COPE_AXIS_SKEW_RATIO: float = 0.1

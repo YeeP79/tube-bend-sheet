@@ -20,6 +20,7 @@ from ...storage import ProfileManager
 from ...storage.tubes import TubeManager
 from ...core import format_length
 from ...core.combined_output import generate_combined_document
+from ...core.cope_path import apply_end_length_adjustments
 
 from ..createBendSheet.bend_sheet_generator import BendSheetGenerator
 from ..createBendSheet.input_parser import InputParser
@@ -289,7 +290,27 @@ def command_execute(args: adsk.core.CommandEventArgs) -> None:
         # Get direction (index 0 = natural, index 1 = reversed)
         travel_reversed = params.travel_reversed
 
-        straights = _analysis.straights
+        # Read template layout dropdown
+        layout_input = adsk.core.DropDownCommandInput.cast(
+            inputs.itemById("template_layout")
+        )
+        if layout_input and layout_input.selectedItem:
+            waste_side = "bottom" if "Setback" in layout_input.selectedItem.name else "top"
+        else:
+            waste_side = "top"
+
+        # Cope pages first: each coped end's straight is lengthened/trimmed
+        # so the tube ends at the cope's long point (the template TUBE END).
+        cope_pages = build_cope_pages(_analysis, units, waste_side=waste_side)
+        straights = apply_end_length_adjustments(
+            _analysis.straights,
+            start_adjustment=next(
+                (p.length_adjustment for p in cope_pages if p.path_end == "start"), None,
+            ),
+            end_adjustment=next(
+                (p.length_adjustment for p in cope_pages if p.path_end == "end"), None,
+            ),
+        )
         bends = _analysis.bends
         starts_with_arc = _analysis.starts_with_bend
         ends_with_arc = _analysis.ends_with_bend
@@ -304,6 +325,8 @@ def command_execute(args: adsk.core.CommandEventArgs) -> None:
             opposite_direction = (
                 f"{_analysis.opposite_direction} to {_analysis.travel_direction}"
             )
+            # Match bend sheet direction
+            cope_pages.reverse()
         else:
             travel_direction = (
                 f"{_analysis.opposite_direction} to {_analysis.travel_direction}"
@@ -339,20 +362,6 @@ def command_execute(args: adsk.core.CommandEventArgs) -> None:
             ui.messageBox("Internal error: No bend sheet data generated", "Error")
             return
 
-        # Read template layout dropdown
-        layout_input = adsk.core.DropDownCommandInput.cast(
-            inputs.itemById("template_layout")
-        )
-        if layout_input and layout_input.selectedItem:
-            waste_side = "bottom" if "Setback" in layout_input.selectedItem.name else "top"
-        else:
-            waste_side = "top"
-
-        # Build cope pages for coped ends, matching bend sheet direction
-        cope_pages = build_cope_pages(_analysis, units, waste_side=waste_side)
-        if travel_reversed:
-            cope_pages.reverse()
-
         # Generate combined HTML
         html = generate_combined_document(result.data, cope_pages)
 
@@ -381,6 +390,14 @@ def command_execute(args: adsk.core.CommandEventArgs) -> None:
         )
         if cope_count > 0:
             message += f"Cope Templates: {cope_count}\n"
+            for page in cope_pages:
+                for note in page.notes:
+                    message += f"  {page.end_label}: {note}\n"
+        else:
+            message += (
+                "Cope Templates: none — no connection found\n"
+                "(connecting tubes must be visible)\n"
+            )
 
         message += "\nOpen in browser for printing?"
 

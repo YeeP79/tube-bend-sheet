@@ -1,0 +1,6 @@
+# Opt this repository into the agent mesh.
+# Hooks refuse to do anything without enabled: true, so deleting
+# this file is a complete opt-out.
+enabled: true
+topics:
+  - repo/tube-bend-sheet/#

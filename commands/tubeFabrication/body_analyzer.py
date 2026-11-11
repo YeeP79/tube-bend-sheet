@@ -17,7 +17,8 @@ from ...models.types import Point3D, Vector3D
 from ...models.body_path_data import BodyPathResult
 from ...models.cope_data import ReceivingTube
 from ...core.body_path import body_path_to_straights_and_bends, detect_path_direction
-from ...core.cope_path import compute_end_reference
+from ...core.cope_path import compute_end_reference, compute_long_point_adjustment
+from ...core.tolerances import CONNECTIVITY_CM
 from ...core.cope_math import calculate_cope, _compute_inclination_angle
 from ...core.combined_output import CopePageData
 from ...core.geometry import normalize, dot_product, cross_product, magnitude
@@ -28,6 +29,13 @@ if TYPE_CHECKING:
     from ...models.bend_data import StraightSection, BendData
     from ...models.cope_data import CopeResult
     from ...models.units import UnitConfig
+
+
+# (body, axis, od_radius_cm, axis_origin_cm) from detect_receiving_tubes_assembly
+ReceiverHit = tuple[adsk.fusion.BRepBody, Vector3D, float, Point3D]
+
+# Cut-length changes smaller than this (~1/32") are not called out on the page
+_ADJUSTMENT_REPORT_THRESHOLD_CM: float = 0.08
 
 
 @dataclass(slots=True)
@@ -76,10 +84,10 @@ class BodyAnalysisResult:
     clr_mismatch: bool
     clr_values_display: list[float]
     body: adsk.fusion.BRepBody | None = None
-    start_receiving: list[tuple[adsk.fusion.BRepBody, Vector3D, float, Point3D]] = field(
+    start_receiving: list[ReceiverHit] = field(
         default_factory=list
     )
-    end_receiving: list[tuple[adsk.fusion.BRepBody, Vector3D, float, Point3D]] = field(
+    end_receiving: list[ReceiverHit] = field(
         default_factory=list
     )
 
@@ -137,8 +145,8 @@ def analyze_body(
     )
 
     # Detect receiving tubes
-    start_receiving: list[tuple[adsk.fusion.BRepBody, Vector3D, float, Point3D]] = []
-    end_receiving: list[tuple[adsk.fusion.BRepBody, Vector3D, float, Point3D]] = []
+    start_receiving: list[ReceiverHit] = []
+    end_receiving: list[ReceiverHit] = []
 
     futil.log(
         f"analyze_body: straights={len(straights)}, bends={len(bends)}, "
@@ -200,100 +208,152 @@ def build_cope_pages(
         waste_side: Template layout — "top" for flush, "bottom" for setback.
 
     Returns:
-        List of CopePageData, one per end with nearby receiving tubes.
+        List of CopePageData, one per end with nearby receiving tubes,
+        in path order (start end first).
     """
     pages: list[CopePageData] = []
 
     if not analysis.straights:
         return pages
 
-    has_bends = len(analysis.bends) > 0
-
-    # Process start end — generate template if receiving tubes are nearby
-    if analysis.start_receiving:
-        try:
-            ref = compute_end_reference(analysis.straights, analysis.bends, "start")
-            receiving = _build_receiving_list(
-                analysis.start_receiving, units,
-            )
-            _log_cope_diagnostics(
-                "Start", ref.tube_direction, analysis.start_point,
-                analysis.start_receiving, receiving, units,
-            )
-            if receiving:
-                result = calculate_cope(
-                    v1=ref.tube_direction,
-                    od1=analysis.od,
-                    receiving_tubes=receiving,
-                    reference_vector=ref.extrados_direction,
-                    unit_label=units.unit_symbol,
-                )
-                max_z = max(result.z_profile) if result.z_profile else 0.0
-                _log_cope_summary(
-                    "Start", analysis.od, receiving, result, max_z, units,
-                )
-                sampled = _run_profile_comparison(
-                    "Start", analysis.body, ref.tube_direction,
-                    analysis.start_point, ref.extrados_direction,
-                    analysis.body_path.od_radius, result.z_profile, units,
-                )
-                pages.append(CopePageData(
-                    end_label=f"{analysis.opposite_direction} End",
-                    cope_result=result,
-                    od1=analysis.od,
-                    tube_name=analysis.body_name,
-                    has_bends=has_bends,
-                    waste_side=waste_side,
-                    sampled_profile=sampled,
-                ))
-        except ValueError:
-            pass  # Skip if end reference cannot be computed
-
-    # Process end end
-    if analysis.end_receiving:
-        try:
-            ref = compute_end_reference(analysis.straights, analysis.bends, "end")
-            receiving = _build_receiving_list(
-                analysis.end_receiving, units,
-            )
-            _log_cope_diagnostics(
-                "End", ref.tube_direction, analysis.end_point,
-                analysis.end_receiving, receiving, units,
-            )
-            if receiving:
-                result = calculate_cope(
-                    v1=ref.tube_direction,
-                    od1=analysis.od,
-                    receiving_tubes=receiving,
-                    reference_vector=ref.extrados_direction,
-                    unit_label=units.unit_symbol,
-                )
-                max_z = max(result.z_profile) if result.z_profile else 0.0
-                _log_cope_summary(
-                    "End", analysis.od, receiving, result, max_z, units,
-                )
-                sampled = _run_profile_comparison(
-                    "End", analysis.body, ref.tube_direction,
-                    analysis.end_point, ref.extrados_direction,
-                    analysis.body_path.od_radius, result.z_profile, units,
-                )
-                pages.append(CopePageData(
-                    end_label=f"{analysis.travel_direction} End",
-                    cope_result=result,
-                    od1=analysis.od,
-                    tube_name=analysis.body_name,
-                    has_bends=has_bends,
-                    waste_side=waste_side,
-                    sampled_profile=sampled,
-                ))
-        except ValueError:
-            pass
+    ends: list[tuple[Literal["start", "end"], str, Point3D, list[ReceiverHit], bool]] = [
+        ("start", f"{analysis.opposite_direction} End", analysis.start_point,
+         analysis.start_receiving, analysis.starts_with_bend),
+        ("end", f"{analysis.travel_direction} End", analysis.end_point,
+         analysis.end_receiving, analysis.ends_with_bend),
+    ]
+    for path_end, end_label, end_point, receivers, at_bend in ends:
+        if not receivers:
+            continue
+        page = _build_end_page(
+            analysis, units, waste_side, path_end, end_label,
+            end_point, receivers, at_bend,
+        )
+        if page is not None:
+            pages.append(page)
 
     return pages
 
 
+def _build_end_page(
+    analysis: BodyAnalysisResult,
+    units: "UnitConfig",
+    waste_side: Literal["top", "bottom"],
+    path_end: Literal["start", "end"],
+    end_label: str,
+    end_point: Point3D,
+    receivers: list[ReceiverHit],
+    at_bend: bool,
+) -> CopePageData | None:
+    """Compute one end's cope and the cut-length change it needs.
+
+    Returns None when the end reference or cope cannot be computed.
+    """
+    log_label = path_end.capitalize()
+    try:
+        ref = compute_end_reference(analysis.straights, analysis.bends, path_end)
+    except ValueError:
+        return None
+
+    receiving = _build_receiving_list(receivers, units)
+    _log_cope_diagnostics(
+        log_label, ref.tube_direction, end_point, receivers, receiving, units,
+    )
+    if not receiving:
+        return None
+
+    try:
+        result = calculate_cope(
+            v1=ref.tube_direction,
+            od1=analysis.od,
+            receiving_tubes=receiving,
+            reference_vector=ref.extrados_direction,
+            unit_label=units.unit_symbol,
+        )
+    except ValueError as e:
+        futil.log(f"  {log_label} end: cope not computed — {e}")
+        return None
+
+    max_z = max(result.z_profile) if result.z_profile else 0.0
+    _log_cope_summary(log_label, analysis.od, receiving, result, max_z, units)
+    # Diagnostic only: logs body-edge vs formula comparison.
+    # The formula drives the template (verified against an
+    # exact ray-cast); body-edge sampling is not reliable enough.
+    _run_profile_comparison(
+        log_label, analysis.body, ref.tube_direction,
+        end_point, ref.extrados_direction,
+        analysis.body_path.od_radius, result.z_profile, units,
+    )
+
+    adjustment: float | None = None
+    notes: list[str] = []
+    if at_bend:
+        notes.append(
+            "Cut length NOT adjusted for the cope: this end finishes in a bend. "
+            "Check the fit before cutting."
+        )
+    else:
+        adjustment = _long_point_adjustment(
+            end_point, ref.tube_direction, receivers, result.z_profile,
+            analysis.body_path.od_radius, units,
+        )
+        if adjustment is None:
+            notes.append(
+                "Cut length NOT adjusted for the cope: tube centerlines do not "
+                "meet at this joint. Check the fit before cutting."
+            )
+        elif abs(adjustment) / units.cm_to_unit >= _ADJUSTMENT_REPORT_THRESHOLD_CM:
+            change = "adds" if adjustment > 0 else "removes"
+            notes.append(
+                f"Cut length {change} {abs(adjustment):.3f}{units.unit_symbol} at this "
+                f"end so the tube ends at the cope's long point (template TUBE END)."
+            )
+    futil.log(f"  {log_label} end: long-point length adjustment = {adjustment}")
+
+    return CopePageData(
+        end_label=end_label,
+        cope_result=result,
+        od1=analysis.od,
+        tube_name=analysis.body_name,
+        has_bends=len(analysis.bends) > 0,
+        waste_side=waste_side,
+        path_end=path_end,
+        length_adjustment=adjustment,
+        notes=notes,
+    )
+
+
+def _long_point_adjustment(
+    end_point: Point3D,
+    tube_direction: Vector3D,
+    receivers: list[ReceiverHit],
+    z_profile: list[float],
+    od_radius_cm: float,
+    units: "UnitConfig",
+) -> float | None:
+    """Display-unit length to add so this end finishes at the cope long point.
+
+    Every receiver must agree on the crossing point (the formula assumes all
+    centerlines meet at one node); otherwise None.
+    """
+    if not z_profile:
+        return None
+    z_min_cm = min(z_profile) / units.cm_to_unit
+    values: list[float] = []
+    for _body, axis, _od_r, origin in receivers:
+        adj = compute_long_point_adjustment(
+            end_point, tube_direction, origin, axis, z_min_cm, od_radius_cm,
+        )
+        if adj is None:
+            return None
+        values.append(adj)
+    if max(values) - min(values) > CONNECTIVITY_CM:
+        return None
+    return values[0] * units.cm_to_unit
+
+
 def _build_receiving_list(
-    receiving: list[tuple[adsk.fusion.BRepBody, Vector3D, float, Point3D]],
+    receiving: list[ReceiverHit],
     units: "UnitConfig",
 ) -> list[ReceivingTube]:
     """Convert extractor results into ReceivingTube model objects.
@@ -355,7 +415,7 @@ def _log_cope_diagnostics(
     end_label: str,
     tube_direction: Vector3D,
     cope_point: Point3D,
-    raw_receiving: list[tuple[adsk.fusion.BRepBody, Vector3D, float, Point3D]],
+    raw_receiving: list[ReceiverHit],
     receiving_tubes: list[ReceivingTube],
     units: "UnitConfig",
 ) -> None:
